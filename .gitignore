@@ -1,0 +1,14 @@
+#Directories
+.vs/
+Output/
+
+#Swig generated C# files
+**/OpenVPNInvokableFiles/
+
+#Swig generated C++ wrappers
+OpenVPNClientApiLibrary_CPP/openvpncli_wrap*
+
+#Machine generated folders
+**/obj/
+**/Properties/
+**/x64/

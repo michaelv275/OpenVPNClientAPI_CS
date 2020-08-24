@@ -1,96 +1,48 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using OpenVpnClientApi_CS.Interfaces;
+using OpenVpnClientApi_CS.Exceptions;
 
 namespace OpenVpnClientApi_CS
 {
     public class OpenVPNClientThread : ClientAPI_OpenVPNClient
     {
-        private EventReceiver _parent;
-        private TunBuilder _tun_builder;
-        private Thread _thread;
-        private ClientAPI_Status _m_connect_status;
+        private IEventReceiver _parent;
+        private ITunBuilder _tunnelBuilder;
+        private Thread _clientThread;
+        private ClientAPI_Status _apiConnectionStatus;
         private bool _hasConnectBeencalled = false;
 
-        private int _bytes_in_index = -1;
-        private int _bytes_out_index = -1;
-
-        public static class ConnectCalledTwice  //: RuntimeException
-        {
-        }
-
-        public interface EventReceiver
-        {
-            // Called with events from core
-            void event_(ClientAPI_Event apiEvent);
-
-            // Called with log text from core
-            void log(ClientAPI_LogInfo loginfo);
-
-            // Called when connect() thread exits
-            void done(ClientAPI_Status status);
-
-            // Called to "protect" a socket from being routed through the tunnel
-            bool socket_protect(int socket);
-
-            // When a connection is close to timeout, the core will call this
-            // method.  If it returns false, the core will disconnect with a
-            // CONNECTION_TIMEOUT event.  If true, the core will enter a PAUSE
-            // state.
-            bool pause_on_connection_timeout();
-
-            // Callback to construct a new tun builder
-            TunBuilder tun_builder_new();
-
-            // Callback to get a certificate
-            void external_pki_cert_request(ClientAPI_ExternalPKICertRequest req);
-
-            // Callback to sign data
-            void external_pki_sign_request(ClientAPI_ExternalPKISignRequest req);
-        }
-
-        public interface TunBuilder
-        {
-            // Tun builder methods.
-            // Methods documented in openvpn/tun/builder/base.hpp
-            bool tun_builder_set_remote_address(String address, bool ipv6);
-            bool tun_builder_add_address(String address, int prefix_length, String gateway, bool ipv6, bool net30);
-            bool tun_builder_reroute_gw(bool ipv4, bool ipv6, long flags);
-            bool tun_builder_add_route(String address, int prefix_length, bool ipv6);
-            bool tun_builder_exclude_route(String address, int prefix_length, bool ipv6);
-            bool tun_builder_add_dns_server(String address, bool ipv6);
-            bool tun_builder_add_search_domain(String domain);
-            bool tun_builder_set_mtu(int mtu);
-            bool tun_builder_set_session_name(String name);
-            int tun_builder_establish();
-            void tun_builder_teardown(bool disconnect);
-        }
+        private int _bytesInIndex = -1;
+        private int _bytesOutIndex = -1;
 
         public OpenVPNClientThread()
         {
-            int n = stats_n();
+            int statCount = stats_n();
 
-            for (int i = 0; i < n; ++i)
+            for (int i = 0; i < statCount; ++i)
             {
-                String name = stats_name(i);
-                if (name == ("BYTES_IN"))
-                    _bytes_in_index = i;
-                if (name == ("BYTES_OUT"))
-                    _bytes_out_index = i;
+                string name = stats_name(i);
+
+                if (name == "BYTES_IN")
+                {
+                    _bytesInIndex = i;
+                }
+                else if (name == "BYTES_OUT")
+                {
+                    _bytesOutIndex = i;
+                }
             }
         }
 
-        // start connect session in worker thread
-        public void connect(EventReceiver parent_arg)
+        //Start connect session in worker thread
+        public void Connect(IEventReceiver parent_arg)
         {
-            Console.WriteLine("OpenVPNClientThread.Connect(EventReceiver parent_arg)");
+            Console.WriteLine("OpenVPNClientThread.Connect(IEventReceiver parent_arg)");
 
             if (_hasConnectBeencalled)
             {
-                throw new Exception("ConnectionCalledTwice");
+                throw new ConnectionCalledTwiceException();
             }
 
             _hasConnectBeencalled = true;
@@ -99,39 +51,44 @@ namespace OpenVpnClientApi_CS
             _parent = parent_arg;
 
             // clear status
-            _m_connect_status = null;
+            _apiConnectionStatus = null;
 
             // execute client in a worker thread
-            _thread = new Thread(new ThreadStart(run)) { Name = "OpenVPNClientThread" };
-            _thread.Start();
+            _clientThread = new Thread(new ThreadStart(Run)) { Name = "OpenVPNClientThread" };
+            _clientThread.Start();
         }
 
         // Wait for worker thread to complete; to stop thread,
         // first call super stop() method then wait_thread().
         // This method will give the thread one second to
         // exit and will abandon it after this time.
-        public void wait_thread_short()
+        public void WaitThreadShort()
         {
-            int wait_millisecs = 5000; // max time that we will wait for thread to exit
-            Thread th = _thread;
-            if (th != null)
+            int waitTimeMs = 5000; // max time that we will wait for thread to exit
+
+            if (_clientThread != null)
             {
                 try
                 {
-                    th.Join(wait_millisecs);
+                    if (_clientThread.Join(waitTimeMs))
+                    {
+                        //client thread joined successfully. Log?
+                    }
                 }
-                catch (Exception e)
+                catch (Exception interruptedException)
                 {
+                    //This means it was joined. Consider logging?
                 }
 
                 // thread failed to stop?
-                if (th.IsAlive)
+                if (_clientThread.IsAlive)
                 {
                     // abandon thread and deliver our own status object to instantiator.
                     ClientAPI_Status status = new ClientAPI_Status();
-                    status.error = (true);
+                    status.error = true;
                     status.message = ("CORE_THREAD_ABANDONED");
-                    call_done(status);
+
+                    EndClientThread(status);
                 }
             }
         }
@@ -139,238 +96,281 @@ namespace OpenVpnClientApi_CS
         // Wait for worker thread to complete; to stop thread,
         // first call super stop() method then wait_thread().
         // This method will wait forever for the thread to exit.
-        public void wait_thread_long()
+        public void WaitThreadLong()
         {
-            if (_thread != null)
+            if (_clientThread != null)
             {
-                bool interrupted;
-                do
+                bool interrupted = false;
+
+                while (!interrupted)
                 {
-                    interrupted = false;
                     try
                     {
-                        _thread.Join();
+                        //will wait indefinitely. if it finishes without error, we still want to break out of the loop and stop the connection;
+                        _clientThread.Join();
+
+                        throw new Exception("Client thread joined successfully");
                     }
                     catch (Exception e)
                     {
                         interrupted = true;
                         base.stop(); // send thread a stop message
                     }
-                } while (interrupted);
+                }
             }
         }
 
-        public long bytes_in()
+        /// <summary>
+        /// prints how many bytes were received with base.stats_value(index) in C++
+        /// </summary>
+        /// <returns></returns>
+        public long GetBytesIn()
         {
-            return base.stats_value(_bytes_in_index);
+            return base.stats_value(_bytesInIndex);
         }
 
-        public long bytes_out()
+        /// <summary>
+        /// prints how many bytes were sent with base.stats_value(index) in C++
+        /// </summary>
+        /// <returns></returns>
+        public long GetBytesOut()
         {
-            return base.stats_value(_bytes_out_index);
+            return base.stats_value(_bytesOutIndex);
         }
 
-        private void call_done(ClientAPI_Status status)
+        private void EndClientThread(ClientAPI_Status status)
         {
-            Console.WriteLine("OpenVPNClientThread.call_done(ClientAPI_Status status)");
-            EventReceiver p = finalize_thread(status);
-            if (p != null)
-                p.done(_m_connect_status);
+            Console.WriteLine("OpenVPNClientThread.EndClientThread(ClientAPI_Status status)");
+            IEventReceiver parent = FinalizeThread(status);
+
+            parent?.ConnectionFinished(_apiConnectionStatus);
         }
 
-        private EventReceiver finalize_thread(ClientAPI_Status connect_status)
+        private IEventReceiver FinalizeThread(ClientAPI_Status connect_status)
         {
-            EventReceiver p = _parent;
-            if (p != null)
+            IEventReceiver finalizedParent = _parent;
+
+            if (finalizedParent != null)
             {
                 // save thread connection status
-                _m_connect_status = connect_status;
+                _apiConnectionStatus = connect_status;
 
                 // disassociate client callbacks from parent
                 _parent = null;
-                _tun_builder = null;
-                _thread = null;
+                _tunnelBuilder = null;
+                _clientThread = null;
             }
-            return p;
+
+            return finalizedParent;
         }
 
-        public void run()
+        public void Run()
         {
             Console.WriteLine("OpenVPNClientThread.Run()");
+
             // Call out to core to start connection.
             // Doesn't return until connection has terminated.
             ClientAPI_Status status = base.connect();
-            call_done(status);
+
+            EndClientThread(status);
         }
 
-        // ClientAPI_OpenVPNClient (C++ class) overrides
+        #region ClientAPI_OpenVPNClient (C++ class) overrides
 
-        public bool socket_protect(int socket)
+        public bool SocketProtect(int socket)
         {
+            bool isSocketProtected = false;
 
-            EventReceiver p = _parent;
-            if (p != null)
-                return p.socket_protect(socket);
-            else
-                return false;
+            if (_parent != null)
+            {
+                isSocketProtected = _parent.SocketProtect(socket);
+            }
+
+            return isSocketProtected;
         }
 
         public override bool pause_on_connection_timeout()
         {
-            EventReceiver p = _parent;
-            if (p != null)
-                return p.pause_on_connection_timeout();
-            else
-                return false;
+            bool isPaused = false;
+
+            if (_parent != null)
+            {
+                isPaused = _parent.PauseOnConnectionTimeout();
+            }
+
+            return isPaused;
         }
 
-        public override void event_(ClientAPI_Event arg0)
+        public override void event_(ClientAPI_Event apiEvent)
         {
-            EventReceiver p = _parent;
-            if (p != null)
-                p.event_(arg0);
+            _parent?.Event_(apiEvent);
         }
 
         public override void log(ClientAPI_LogInfo loginfo)
         {
-            EventReceiver p = _parent;
-            if (p != null)
-                p.log(loginfo);
+            _parent?.Log(loginfo);
         }
 
         public override void external_pki_cert_request(ClientAPI_ExternalPKICertRequest req)
         {
-            EventReceiver p = _parent;
-            if (p != null)
-                p.external_pki_cert_request(req);
+            _parent?.ExternalPkiCertRequest(req);
         }
 
         public override void external_pki_sign_request(ClientAPI_ExternalPKISignRequest req)
         {
-            EventReceiver p = _parent;
-            if (p != null)
-                p.external_pki_sign_request(req);
+            _parent?.ExternalPkiSignRequest(req);
         }
+        #endregion
 
-        // TunBuilderBase (C++ class) overrides
+        #region TunBuilderBase (C++ class) overrides
 
         public override bool tun_builder_new()
         {
-            EventReceiver p = _parent;
-            if (p != null)
+            if (_parent != null)
             {
-                _tun_builder = p.tun_builder_new();
-                return _tun_builder != null;
+                _tunnelBuilder = _parent.TunBuilderNew();
             }
-            else
-                return false;
+
+            return _tunnelBuilder != null;
         }
 
 
-        public override bool tun_builder_set_remote_address(String address, bool ipv6)
+        public override bool tun_builder_set_remote_address(string address, bool ipv6)
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                return tb.tun_builder_set_remote_address(address, ipv6);
-            else
-                return false;
+            bool isRemoteAddressSet = false;
+
+            if (_tunnelBuilder != null)
+            {
+                isRemoteAddressSet = _tunnelBuilder.TunBuilderSetRemoteAddress(address, ipv6);
+            }
+
+            return isRemoteAddressSet;
         }
 
 
-        public override bool tun_builder_add_address(String address, int prefix_length, String gateway, bool ipv6, bool net30)
+        public override bool tun_builder_add_address(string address, int prefix_length, string gateway, bool ipv6, bool net30)
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                return tb.tun_builder_add_address(address, prefix_length, gateway, ipv6, net30);
-            else
-                return false;
+            bool isAddressSet = false;
+
+            if (_tunnelBuilder != null)
+            {
+                isAddressSet = _tunnelBuilder.TunBuilderAddAddress(address, prefix_length, gateway, ipv6, net30);
+            }
+
+            return isAddressSet;
         }
 
 
         public bool tun_builder_reroute_gw(bool ipv4, bool ipv6, long flags)
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                return tb.tun_builder_reroute_gw(ipv4, ipv6, flags);
-            else
-                return false;
+            bool isGatewayRerouted = false;
+
+            if (_tunnelBuilder != null)
+            {
+                isGatewayRerouted = _tunnelBuilder.TunBuilderRerouteGw(ipv4, ipv6, flags);
+            }
+            
+            return isGatewayRerouted;
         }
 
 
-        public override bool tun_builder_add_route(String address, int prefix_length, int metric, bool ipv6)
+        public override bool tun_builder_add_route(string address, int prefix_length, int metric, bool ipv6)
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                return tb.tun_builder_add_route(address, prefix_length, ipv6);
-            else
-                return false;
+            bool isRouteAdded = false;
+
+            if (_tunnelBuilder != null)
+            {
+                return _tunnelBuilder.TunBuilderAddRoute(address, prefix_length, ipv6);
+            }
+
+            return isRouteAdded;
         }
 
 
-        public override bool tun_builder_exclude_route(String address, int prefix_length, int metric, bool ipv6)
+        public override bool tun_builder_exclude_route(string address, int prefix_length, int metric, bool ipv6)
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                return tb.tun_builder_exclude_route(address, prefix_length, ipv6);
-            else
-                return false;
+            bool isRouteExcluded = false;
+
+            if (_tunnelBuilder != null)
+            {
+                isRouteExcluded = _tunnelBuilder.TunBuilderExcludeRoute(address, prefix_length, ipv6);
+            }
+            
+            return isRouteExcluded;
         }
 
 
-        public override bool tun_builder_add_dns_server(String address, bool ipv6)
+        public override bool tun_builder_add_dns_server(string address, bool ipv6)
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                return tb.tun_builder_add_dns_server(address, ipv6);
-            else
-                return false;
+            bool isDNSServerSet = false;
+
+            if (_tunnelBuilder != null)
+            {
+                isDNSServerSet = _tunnelBuilder.TunBuilderAddDnsServer(address, ipv6);
+            }
+            
+                return isDNSServerSet;
         }
 
 
-        public override bool tun_builder_add_search_domain(String domain)
+        public override bool tun_builder_add_search_domain(string domain)
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                return tb.tun_builder_add_search_domain(domain);
-            else
-                return false;
+            bool isSearchDomainAdded = false;
+
+            if (_tunnelBuilder != null)
+            {
+                isSearchDomainAdded = _tunnelBuilder.TunBuilderAddSearchDomain(domain);
+            }
+            
+            return isSearchDomainAdded;
         }
 
 
         public override bool tun_builder_set_mtu(int mtu)
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                return tb.tun_builder_set_mtu(mtu);
-            else
-                return false;
+            bool isMtuSet = false;
+
+            if (_tunnelBuilder != null)
+            {
+                isMtuSet = _tunnelBuilder.TunBuilderSetMtu(mtu);
+            }
+
+            return isMtuSet;
         }
 
 
-        public override bool tun_builder_set_session_name(String name)
+        public override bool tun_builder_set_session_name(string name)
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                return tb.tun_builder_set_session_name(name);
-            else
-                return false;
+            bool isSessionNameSet = false;
+
+            if (_tunnelBuilder != null)
+            {
+                isSessionNameSet = _tunnelBuilder.TunBuilderSetSessionName(name);
+            }
+
+            return isSessionNameSet;
         }
 
         public override int tun_builder_establish()
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                return tb.tun_builder_establish();
-            else
-                return -1;
+            int tunnelPort = -1;
+
+            if (_tunnelBuilder != null)
+            {
+                tunnelPort = _tunnelBuilder.TunBuilderEstablish();
+            }
+
+            return tunnelPort;
         }
 
 
         public override void tun_builder_teardown(bool disconnect)
         {
-            TunBuilder tb = _tun_builder;
-            if (tb != null)
-                tb.tun_builder_teardown(disconnect);
+            if (_tunnelBuilder != null)
+            {
+                _tunnelBuilder.TunBuilderTeardown(disconnect);
+            }
         }
+        #endregion
     }
 }

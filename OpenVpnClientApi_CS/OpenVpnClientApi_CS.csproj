@@ -82,37 +82,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="OpenVPNClientThread.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_Config.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_ConnectionInfo.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_DynamicChallenge.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_EvalConfig.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_Event.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_ExternalPKIBase.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_ExternalPKICertRequest.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_ExternalPKIRequestBase.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_ExternalPKISignRequest.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_InterfaceStats.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_KeyValue.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_LLVector.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_LogInfo.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_MergeConfig.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_OpenVPNClient.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_ProvideCreds.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_RemoteOverride.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_ServerEntry.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_ServerEntryVector.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_SessionToken.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_Status.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_StringVec.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_TransportStats.cs" />
-    <Compile Include="OpenVPNInvokableFiles\ClientAPI_TunBuilderBase.cs" />
-    <Compile Include="OpenVPNInvokableFiles\openvpncli.cs" />
-    <Compile Include="OpenVPNInvokableFiles\openvpncliPINVOKE.cs" />
-    <Compile Include="OpenVPNInvokableFiles\SWIGTYPE_p_openvpn__Stop.cs" />
-    <Compile Include="OpenVPNInvokableFiles\SWIGTYPE_p_std__string.cs" />
-    <Compile Include="OpenVPNInvokableFiles\SWIGTYPE_p_std__vectorT_openvpn__ClientAPI__KeyValue_t.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="OpenVPNInvokableFiles\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

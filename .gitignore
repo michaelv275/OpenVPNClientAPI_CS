@@ -1,6 +1,9 @@
-#Directories
+#Visual Studio Directories
 .vs/
 Output/
+
+#Unit Test outputs
+TestResults/
 
 #Swig generated C# files
 **/OpenVPNInvokableFiles/

@@ -1,7 +1,7 @@
 // SWIG interface file for OpenVPN client
 
 // enable director feature for OpenVPNClientBase virtual method callbacks
-%module(directors="1") openvpncli;
+%module(directors="1") OpenVPNClientApiLibrary_CPP;
 %feature("director") OpenVPNClient;
 
 %include "std_string.i" // for std::string typemaps

@@ -8,10 +8,15 @@ namespace OpenVpnClientApi_CS
 {
     public class Client : IEventReceiver
     {
-        private OpenVPNClientThread _clientThread { get; set; }
-        private ClientAPI_Config _configData { get; set; }
-        private ClientAPI_ProvideCreds _configCreds { get; set; }
-        private ClientAPI_EvalConfig _configEvaluator { get; set; }
+        private OpenVPNClientThread _clientThread;
+        private ClientAPI_Config _configData;
+        private ClientAPI_ProvideCreds _configCreds;
+        private ClientAPI_EvalConfig _configEvaluator;
+
+        public OpenVPNClientThread ClientThread { get => _clientThread; }
+        public ClientAPI_Config ConfigData { get => _configData; }
+        public ClientAPI_ProvideCreds ConfigCreds { get => _configCreds; }
+        public ClientAPI_EvalConfig ConfigEvaluator { get => _configEvaluator; }
 
         /// <summary>
         /// creates a new Client object and initializes the C++ implementation Object, a new OpenVPNClientThread object
@@ -83,56 +88,73 @@ namespace OpenVpnClientApi_CS
             }
         }
 
-        //provide credentials if VPN server requires them
-        public void AddCredentials(string username, string password, bool useCredentials)
+        /// <summary>
+        /// provide credentials if VPN server requires them
+        /// </summary>
+        /// <param name="useCredentials"></param>
+        /// <param name="username"></param>
+        /// <param name="password"></param>
+        public ClientAPI_Status AddCredentials(bool useCredentials, string username = null, string password = null)
         {
+            ClientAPI_Status credentialStatus = new ClientAPI_Status();
 
             if (useCredentials)
             {
-                if (!_configEvaluator.autologin)
+                if (!ConfigEvaluator.autologin)
                 {
                     if (!String.IsNullOrEmpty(username))
                     {
-                        _configCreds.username = username;
-                        _configCreds.password = password;
-                        _configCreds.replacePasswordWithSessionID = true;
+                        ConfigCreds.username = username;
+                        ConfigCreds.password = password;
+                        ConfigCreds.replacePasswordWithSessionID = true;
                     }
                 }
             }
 
             if (_configCreds != null)
             {
-                _clientThread.provide_creds(_configCreds);
+                credentialStatus = ClientThread.provide_creds(_configCreds);
             }
             else
             {
                 throw new CredsUnspecifiedError("No ClientAPI_ProvideCreds object exists. Which probably means the Client object was not initialized");
             }
+
+            return credentialStatus;
         }
 
+        /// <summary>
+        /// Use the OpenVPNClientThread object to start a connection
+        /// </summary>
         public void Connect()
         {
-            Console.WriteLine("Client.Connect()");
-
             // connect
-            _clientThread.Connect(this);
+            ClientThread.Connect(this);
 
             // wait for worker thread to exit
-            _clientThread.WaitThreadLong();
+            ClientThread.WaitThreadLong();
         }
 
+        /// <summary>
+        /// Stop the OpenVPNClientThread
+        /// </summary>
         public void Stop()
         {
-            _clientThread.stop();
+            ClientThread.stop();
         }
 
+        /// <summary>
+        /// Prints the input/ouput stats to the console
+        /// </summary>
         public void Show_stats()
         {
-            int n = OpenVPNClientThread.stats_n();
-            for (int i = 0; i < n; ++i)
+            int statCount = OpenVPNClientThread.stats_n();
+
+            for (int i = 0; i < statCount; ++i)
             {
-                String name = OpenVPNClientThread.stats_name(i);
-                long value = _clientThread.stats_value(i);
+                string name = OpenVPNClientThread.stats_name(i);
+                long value = ClientThread.stats_value(i);
+
                 if (value > 0)
                 {
                     Console.WriteLine("STAT: {0}={1}", name, value);
@@ -140,16 +162,27 @@ namespace OpenVpnClientApi_CS
             }
         }
 
+        /// <summary>
+        /// Called when the connection has been cancelled, or stopped.
+        /// Writes a message to the console window
+        /// </summary>
+        /// <param name="status">The ClientAPI_Status object containing the data to write</param>
         public void ConnectionFinished(ClientAPI_Status status)
         {
             Console.WriteLine("DONE ClientAPI_Status: err={0} msg='{1}'", status.error, status.message);
         }
 
+        /// <summary>
+        /// Fired when connection is started, stopped, or cancelled
+        /// Writes any errors to the output console
+        /// </summary>
+        /// <param name="apiEvent"></param>
         public void Event_(ClientAPI_Event apiEvent)
         {
             bool error = apiEvent.error;
-            String name = apiEvent.name;
+            string name = apiEvent.name;
             string info = apiEvent.info;
+
             Console.WriteLine("EVENT: err={0} name={1} info='{2}'", error, name, info);
         }
 
@@ -165,22 +198,46 @@ namespace OpenVpnClientApi_CS
             req.errorText = "sign request failed: external PKI not implemented";
         }
 
+        /// <summary>
+        /// Writes a message to the console
+        /// </summary>
+        /// <param name="loginfo"></param>
         public void Log(ClientAPI_LogInfo loginfo)
         {
             string text = loginfo.text;
             Console.WriteLine("LOG: {0}", text);
         }
 
+        /// <summary>
+        /// When a connection is close to timeout, the core will call this
+        /// method.  If it returns false, the core will disconnect with a
+        /// CONNECTION_TIMEOUT event.  If true, the core will enter a PAUSE
+        /// state.
+        /// 
+        /// False by default
+        /// </summary>
+        /// <returns></returns>
         public bool PauseOnConnectionTimeout()
         {
             return false;
         }
 
+        /// <summary>
+        /// Called to "protect" a socket from being routed through the tunnel
+        /// False by default
+        /// </summary>
+        /// <param name="socket"></param>
+        /// <returns></returns>
         public bool SocketProtect(int socket)
         {
             return false;
         }
 
+        /// <summary>
+        /// Creates a new instance of the ITunBuilder interface
+        /// null by default
+        /// </summary>
+        /// <returns></returns>
         public ITunBuilder TunBuilderNew()
         {
             return null;
@@ -190,10 +247,6 @@ namespace OpenVpnClientApi_CS
         {
             // Load OpenVPN core (implements ClientAPI_OpenVPNClient) from shared library 
             ClientAPI_OpenVPNClient.init_process();
-
-            //For testing the crypto library
-            //string test = ClientAPI_OpenVPNClient.crypto_self_test();
-            //Console.WriteLine("Crypto self test: {0}", test);
         }
     }
 }

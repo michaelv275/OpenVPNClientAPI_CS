@@ -2,6 +2,7 @@
 using System.Threading;
 using OpenVpnClientApi_CS.Interfaces;
 using OpenVpnClientApi_CS.Exceptions;
+using System.Collections.Generic;
 
 namespace OpenVpnClientApi_CS
 {
@@ -15,6 +16,9 @@ namespace OpenVpnClientApi_CS
 
         private int _bytesInIndex = -1;
         private int _bytesOutIndex = -1;
+
+        //Logging that is not done through the core (C++), must be done through this manager
+        public Client Manager { get; set; }
 
         public OpenVPNClientThread()
         {
@@ -38,8 +42,6 @@ namespace OpenVpnClientApi_CS
         //Start connect session in worker thread
         public void Connect(IEventReceiver parent_arg)
         {
-            Console.WriteLine("OpenVPNClientThread.Connect(IEventReceiver parent_arg)");
-
             if (_hasConnectBeencalled)
             {
                 throw new ConnectionCalledTwiceException();
@@ -58,13 +60,17 @@ namespace OpenVpnClientApi_CS
             _clientThread.Start();
         }
 
-        // Wait for worker thread to complete; to stop thread,
-        // first call super stop() method then wait_thread().
-        // This method will give the thread one second to
-        // exit and will abandon it after this time.
-        public void WaitThreadShort()
+        /// <summary>
+        /// Wait for worker thread to complete; to stop thread,
+        /// first call base.stop() method then wait_thread().
+        /// 
+        /// Default wait time is 30 seconds.
+        /// After that time, the thread will be cancelled and the connection will be stopped
+        /// </summary>
+        /// <param name="waitTimeSeconds"></param>
+        public void WaitThreadShort(int waitTimeSeconds = 30)
         {
-            int waitTimeMs = 5000; // max time that we will wait for thread to exit
+            int waitTimeMs = (waitTimeSeconds * 1000); // max time that we will wait for thread to exit
 
             if (_clientThread != null)
             {
@@ -72,16 +78,16 @@ namespace OpenVpnClientApi_CS
                 {
                     if (_clientThread.Join(waitTimeMs))
                     {
-                        //client thread joined successfully. Log?
+                        Manager?.Log(new ClientAPI_LogInfo() { text = "client thread joined" });
                     }
                 }
                 catch (Exception interruptedException)
                 {
-                    //This means it was joined. Consider logging?
+                    Manager?.Log(new ClientAPI_LogInfo() { text = "interruptedException thrown trying to join _clientThread" });
                 }
 
-                // thread failed to stop?
-                if (_clientThread.IsAlive)
+                // somethimes the thread joins correctly, then get's set to null. so make sure it's still there
+                if (_clientThread != null && _clientThread.IsAlive)
                 {
                     // abandon thread and deliver our own status object to instantiator.
                     ClientAPI_Status status = new ClientAPI_Status();
@@ -94,7 +100,7 @@ namespace OpenVpnClientApi_CS
         }
 
         // Wait for worker thread to complete; to stop thread,
-        // first call super stop() method then wait_thread().
+        // first call base.stop() method then WaitThreadShort().
         // This method will wait forever for the thread to exit.
         public void WaitThreadLong()
         {
@@ -140,7 +146,6 @@ namespace OpenVpnClientApi_CS
 
         private void EndClientThread(ClientAPI_Status status)
         {
-            Console.WriteLine("OpenVPNClientThread.EndClientThread(ClientAPI_Status status)");
             IEventReceiver parent = FinalizeThread(status);
 
             parent?.ConnectionFinished(_apiConnectionStatus);
@@ -159,6 +164,7 @@ namespace OpenVpnClientApi_CS
                 _parent = null;
                 _tunnelBuilder = null;
                 _clientThread = null;
+                _hasConnectBeencalled = false;
             }
 
             return finalizedParent;
@@ -166,13 +172,16 @@ namespace OpenVpnClientApi_CS
 
         public void Run()
         {
-            Console.WriteLine("OpenVPNClientThread.Run()");
-
             // Call out to core to start connection.
             // Doesn't return until connection has terminated.
             ClientAPI_Status status = base.connect();
 
             EndClientThread(status);
+        }
+
+        public bool IsCurrentlyRunning()
+        {
+            return (_clientThread != null && _clientThread.IsAlive);
         }
 
         #region ClientAPI_OpenVPNClient (C++ class) overrides

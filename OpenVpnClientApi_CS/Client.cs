@@ -1,7 +1,6 @@
-﻿using OpenVpnClientApi_CS.Interfaces;
+﻿using OpenVpnClientApi_CS.Exceptions;
+using OpenVpnClientApi_CS.Interfaces;
 using System;
-using OpenVpnClientApi_CS.Exceptions;
-using System.Collections.Generic;
 using System.IO;
 
 namespace OpenVpnClientApi_CS
@@ -12,6 +11,10 @@ namespace OpenVpnClientApi_CS
         private ClientAPI_Config _configData;
         private ClientAPI_ProvideCreds _configCreds;
         private ClientAPI_EvalConfig _configEvaluator;
+
+        public event EventHandler ConnectionClosed;
+        public event EventHandler ConnectionAttemptCompleted;
+        public event EventHandler<ClientAPI_Event> CoreEventReceived;
 
         public OpenVPNClientThread ClientThread { get => _clientThread; }
         public ClientAPI_Config ConfigData { get => _configData; }
@@ -26,9 +29,47 @@ namespace OpenVpnClientApi_CS
         {
             LoadCore();
 
-            _clientThread = new OpenVPNClientThread();
+            _clientThread = new OpenVPNClientThread() { Manager = this };
             _configData = new ClientAPI_Config();
             _configCreds = new ClientAPI_ProvideCreds();
+        }
+
+        /// <summary>
+        /// Event handler for the ConnectionClosed event
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        public void OnConnectionClosed()
+        {
+            ConnectionClosed?.Invoke(this, new EventArgs());
+        }
+
+        /// <summary>
+        /// Event handler for the ConnectionClosed event
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        public void OnConnectionAttemptCompleted()
+        {
+            ConnectionAttemptCompleted?.Invoke(this, new EventArgs());
+        }
+
+        /// <summary>
+        /// Event handler for the CoreEventReceived event
+        /// Default is to log the message to the console.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        public void OnCoreEventReceived(ClientAPI_Event message)
+        {
+            if (CoreEventReceived != null)
+            {
+                CoreEventReceived.Invoke(this, message);
+            }
+            else
+            {
+                Console.WriteLine("EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info);
+            }
         }
 
         /// <summary>
@@ -124,15 +165,29 @@ namespace OpenVpnClientApi_CS
         }
 
         /// <summary>
-        /// Use the OpenVPNClientThread object to start a connection
+        /// Use the OpenVPNClientThread object to start a connection.
+        /// 
+        /// If another connection is active, end it. Once that connection is ended, start the new one.
         /// </summary>
         public void Connect()
         {
-            // connect
-            ClientThread.Connect(this);
+            if (ClientThread.IsCurrentlyRunning())
+            {
+                //Call Connect() after disconnection complete
+                //ConnectionClosed += (o, e) => Connect();
 
-            // wait for worker thread to exit
-            ClientThread.WaitThreadLong();
+                //close the previous connection
+                Console.WriteLine("Closing previous connection");
+
+                Stop();
+            }
+            else
+            {
+                //remove callback tothis method so we don't get stuck in an endless loop.
+                ConnectionClosed -= (o, e) => Connect();
+
+                ClientThread.Connect(this);
+            }
         }
 
         /// <summary>
@@ -141,6 +196,8 @@ namespace OpenVpnClientApi_CS
         public void Stop()
         {
             ClientThread.stop();
+
+            ClientThread.WaitThreadShort(5);
         }
 
         /// <summary>
@@ -164,26 +221,31 @@ namespace OpenVpnClientApi_CS
 
         /// <summary>
         /// Called when the connection has been cancelled, or stopped.
-        /// Writes a message to the console window
+        /// Writes a message to the console window, then triggers the ConnectionClosed Event
         /// </summary>
         /// <param name="status">The ClientAPI_Status object containing the data to write</param>
         public void ConnectionFinished(ClientAPI_Status status)
         {
-            Console.WriteLine("DONE ClientAPI_Status: err={0} msg='{1}'", status.error, status.message);
+            OnConnectionClosed();
         }
 
         /// <summary>
         /// Fired when connection is started, stopped, or cancelled
-        /// Writes any errors to the output console
+        /// Any event returned from the CoreLibrary goes through here.
+        /// 
+        /// If the event was a connected or disconnected event, the OnConnectionAttemptCompleted and/or OnConnectionClosed events will be fired
         /// </summary>
         /// <param name="apiEvent"></param>
         public void Event_(ClientAPI_Event apiEvent)
         {
-            bool error = apiEvent.error;
-            string name = apiEvent.name;
-            string info = apiEvent.info;
-
-            Console.WriteLine("EVENT: err={0} name={1} info='{2}'", error, name, info);
+            if (String.Equals(apiEvent.name, "Connected", StringComparison.OrdinalIgnoreCase))
+            {
+                OnConnectionAttemptCompleted();
+            }
+            else
+            {
+                OnCoreEventReceived(apiEvent);
+            }
         }
 
         public void ExternalPkiCertRequest(ClientAPI_ExternalPKICertRequest req)

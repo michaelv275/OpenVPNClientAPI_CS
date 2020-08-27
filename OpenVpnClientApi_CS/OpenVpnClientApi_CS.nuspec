@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Dispel</authors>
+    <owners>$author$</owners>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <license type="expression">AGPL-3.0-or-later</license>
+    <description>A C# wrapper for the OpenVPN3 core library client API.</description>
+    <releaseNotes>
+    This is a test version of the Nuget package. Full functionality is not implemented or tested.
+
+    Initial release of OpenVPNClientAPI_CS.
+    </releaseNotes>
+    <copyright>Copyright 2020</copyright>
+    <tags>VPN OpenVPN C# OpenVPNC# OpenVPNClient VPNClient OpenVPN3</tags>
+
+    <dependencies>
+      <group targetFramework=".NETFramework4.5" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="..\Output\x64\Release\*.*" target="lib\net45" />
+  </files>
+</package>

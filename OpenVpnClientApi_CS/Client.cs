@@ -12,14 +12,34 @@ namespace OpenVpnClientApi_CS
         private ClientAPI_ProvideCreds _configCreds;
         private ClientAPI_EvalConfig _configEvaluator;
 
+        /// <summary>
+        /// Event handler for the ConnectionClosed event
+        /// Default is to write "Disconnected from VPN" to the console. 
+        /// </summary>
         public event EventHandler ConnectionClosed;
-        public event EventHandler ConnectionAttemptCompleted;
+
+        /// <summary>
+        /// Event handler for the ConnectionClosed event
+        /// Default is to write "Connected to VPN" to the console.
+        /// </summary>
+        public event EventHandler ConnectionEstablished;
+
+        /// <summary>
+        /// Event handler for the Log and Stat events
+        /// Default is to log the message to the console.
+        /// </summary>
+        public event EventHandler<string> LogReceived;
+
+        /// <summary>
+        /// Event handler for the CoreEventReceived event
+        /// Default is to log the message to the console.
+        /// </summary>
         public event EventHandler<ClientAPI_Event> CoreEventReceived;
 
-        public OpenVPNClientThread ClientThread { get => _clientThread; }
-        public ClientAPI_Config ConfigData { get => _configData; }
-        public ClientAPI_ProvideCreds ConfigCreds { get => _configCreds; }
-        public ClientAPI_EvalConfig ConfigEvaluator { get => _configEvaluator; }
+        public OpenVPNClientThread ClientThread { get => _clientThread; set => _clientThread = value; }
+        public ClientAPI_Config ConfigData { get => _configData; set => _configData = value; }
+        public ClientAPI_ProvideCreds ConfigCreds { get => _configCreds; set => _configCreds = value; }
+        public ClientAPI_EvalConfig ConfigEvaluator { get => _configEvaluator; set => _configEvaluator = value; }
 
         /// <summary>
         /// creates a new Client object and initializes the C++ implementation Object, a new OpenVPNClientThread object
@@ -29,38 +49,34 @@ namespace OpenVpnClientApi_CS
         {
             LoadCore();
 
-            _clientThread = new OpenVPNClientThread() { Manager = this };
-            _configData = new ClientAPI_Config();
-            _configCreds = new ClientAPI_ProvideCreds();
+            SetDefaultManagementComponents();
         }
 
-        /// <summary>
-        /// Event handler for the ConnectionClosed event
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        public void OnConnectionClosed()
+        private void OnConnectionClosed()
         {
-            ConnectionClosed?.Invoke(this, new EventArgs());
+            if (ConnectionClosed != null)
+            {
+                ConnectionClosed.Invoke(this, new EventArgs());
+            }
+            else
+            {
+                Console.WriteLine("Disconnected from VPN");
+            }
         }
 
-        /// <summary>
-        /// Event handler for the ConnectionClosed event
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        public void OnConnectionAttemptCompleted()
+        private void OnConnectionEstablished()
         {
-            ConnectionAttemptCompleted?.Invoke(this, new EventArgs());
+            if (ConnectionEstablished != null)
+            {
+                ConnectionEstablished.Invoke(this, new EventArgs());
+            }
+            else
+            {
+                Console.WriteLine("Connected to VPN");
+            }
         }
 
-        /// <summary>
-        /// Event handler for the CoreEventReceived event
-        /// Default is to log the message to the console.
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        public void OnCoreEventReceived(ClientAPI_Event message)
+        private void OnCoreEventReceived(ClientAPI_Event message)
         {
             if (CoreEventReceived != null)
             {
@@ -69,6 +85,18 @@ namespace OpenVpnClientApi_CS
             else
             {
                 Console.WriteLine("EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info);
+            }
+        }
+
+        private void OnLogReceived(string logMessage)
+        {
+            if (CoreEventReceived != null)
+            {
+                LogReceived.Invoke(this, logMessage);
+            }
+            else
+            {
+                Console.WriteLine(logMessage);
             }
         }
 
@@ -173,19 +201,13 @@ namespace OpenVpnClientApi_CS
         {
             if (ClientThread.IsCurrentlyRunning())
             {
-                //Call Connect() after disconnection complete
-                //ConnectionClosed += (o, e) => Connect();
+                string errorMessage = "Before starting another connection, the current client object must be stopped (clientObj.Stop()) ";
+                errorMessage += " Then, the object's config and credentials must be reset with the new values, then Connect() can be called";
 
-                //close the previous connection
-                Console.WriteLine("Closing previous connection");
-
-                Stop();
+                throw new ConnectionCalledTwiceException(errorMessage);
             }
             else
             {
-                //remove callback tothis method so we don't get stuck in an endless loop.
-                ConnectionClosed -= (o, e) => Connect();
-
                 ClientThread.Connect(this);
             }
         }
@@ -195,17 +217,16 @@ namespace OpenVpnClientApi_CS
         /// </summary>
         public void Stop()
         {
-            ClientThread.stop();
-
-            ClientThread.WaitThreadShort(5);
+            ClientThread.Stop();
         }
 
         /// <summary>
-        /// Prints the input/ouput stats to the console
+        /// Gets the IO stats from the openVPN core library and fires the OnLogReceived event with output
         /// </summary>
         public void Show_stats()
         {
             int statCount = OpenVPNClientThread.stats_n();
+            bool printHeader = true;
 
             for (int i = 0; i < statCount; ++i)
             {
@@ -214,7 +235,14 @@ namespace OpenVpnClientApi_CS
 
                 if (value > 0)
                 {
-                    Console.WriteLine("STAT: {0}={1}", name, value);
+                    if (printHeader)
+                    {
+                        printHeader = false;
+
+                        OnLogReceived("STATISTICS:");
+                    }
+
+                    OnLogReceived(String.Format("STAT: {0}={1}", name, value));
                 }
             }
         }
@@ -226,6 +254,9 @@ namespace OpenVpnClientApi_CS
         /// <param name="status">The ClientAPI_Status object containing the data to write</param>
         public void ConnectionFinished(ClientAPI_Status status)
         {
+            //Release all connection data
+            SetDefaultManagementComponents();
+
             OnConnectionClosed();
         }
 
@@ -240,7 +271,7 @@ namespace OpenVpnClientApi_CS
         {
             if (String.Equals(apiEvent.name, "Connected", StringComparison.OrdinalIgnoreCase))
             {
-                OnConnectionAttemptCompleted();
+                OnConnectionEstablished();
             }
             else
             {
@@ -261,13 +292,14 @@ namespace OpenVpnClientApi_CS
         }
 
         /// <summary>
-        /// Writes a message to the console
+        /// receives a message from the OpenVPN core library and fires OnLogReceived event
         /// </summary>
         /// <param name="loginfo"></param>
         public void Log(ClientAPI_LogInfo loginfo)
         {
-            string text = loginfo.text;
-            Console.WriteLine("LOG: {0}", text);
+            string text = String.Format("LOG: {0}", loginfo.text);
+
+            OnLogReceived(text);
         }
 
         /// <summary>
@@ -309,6 +341,14 @@ namespace OpenVpnClientApi_CS
         {
             // Load OpenVPN core (implements ClientAPI_OpenVPNClient) from shared library 
             ClientAPI_OpenVPNClient.init_process();
+        }
+
+        private void SetDefaultManagementComponents()
+        {
+            ClientThread = new OpenVPNClientThread() { Manager = this };
+            ConfigData = new ClientAPI_Config();
+            ConfigCreds = new ClientAPI_ProvideCreds();
+            ConfigEvaluator = null;
         }
     }
 }

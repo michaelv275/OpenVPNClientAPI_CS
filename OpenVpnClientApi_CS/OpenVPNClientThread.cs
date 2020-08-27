@@ -1,8 +1,6 @@
-﻿using System;
-using System.Threading;
+﻿using OpenVpnClientApi_CS.Exceptions;
 using OpenVpnClientApi_CS.Interfaces;
-using OpenVpnClientApi_CS.Exceptions;
-using System.Collections.Generic;
+using System.Threading;
 
 namespace OpenVpnClientApi_CS
 {
@@ -61,72 +59,6 @@ namespace OpenVpnClientApi_CS
         }
 
         /// <summary>
-        /// Wait for worker thread to complete; to stop thread,
-        /// first call base.stop() method then wait_thread().
-        /// 
-        /// Default wait time is 30 seconds.
-        /// After that time, the thread will be cancelled and the connection will be stopped
-        /// </summary>
-        /// <param name="waitTimeSeconds"></param>
-        public void WaitThreadShort(int waitTimeSeconds = 30)
-        {
-            int waitTimeMs = (waitTimeSeconds * 1000); // max time that we will wait for thread to exit
-
-            if (_clientThread != null)
-            {
-                try
-                {
-                    if (_clientThread.Join(waitTimeMs))
-                    {
-                        Manager?.Log(new ClientAPI_LogInfo() { text = "client thread joined" });
-                    }
-                }
-                catch (Exception interruptedException)
-                {
-                    Manager?.Log(new ClientAPI_LogInfo() { text = "interruptedException thrown trying to join _clientThread" });
-                }
-
-                // somethimes the thread joins correctly, then get's set to null. so make sure it's still there
-                if (_clientThread != null && _clientThread.IsAlive)
-                {
-                    // abandon thread and deliver our own status object to instantiator.
-                    ClientAPI_Status status = new ClientAPI_Status();
-                    status.error = true;
-                    status.message = ("CORE_THREAD_ABANDONED");
-
-                    EndClientThread(status);
-                }
-            }
-        }
-
-        // Wait for worker thread to complete; to stop thread,
-        // first call base.stop() method then WaitThreadShort().
-        // This method will wait forever for the thread to exit.
-        public void WaitThreadLong()
-        {
-            if (_clientThread != null)
-            {
-                bool interrupted = false;
-
-                while (!interrupted)
-                {
-                    try
-                    {
-                        //will wait indefinitely. if it finishes without error, we still want to break out of the loop and stop the connection;
-                        _clientThread.Join();
-
-                        throw new Exception("Client thread joined successfully");
-                    }
-                    catch (Exception e)
-                    {
-                        interrupted = true;
-                        base.stop(); // send thread a stop message
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// prints how many bytes were received with base.stats_value(index) in C++
         /// </summary>
         /// <returns></returns>
@@ -144,6 +76,10 @@ namespace OpenVpnClientApi_CS
             return base.stats_value(_bytesOutIndex);
         }
 
+        /// <summary>
+        /// Terminates _clientThread object and any work it was doing
+        /// </summary>
+        /// <param name="status"></param>
         private void EndClientThread(ClientAPI_Status status)
         {
             IEventReceiver parent = FinalizeThread(status);
@@ -177,6 +113,11 @@ namespace OpenVpnClientApi_CS
             ClientAPI_Status status = base.connect();
 
             EndClientThread(status);
+        }
+
+        public void Stop()
+        {
+            base.stop();
         }
 
         public bool IsCurrentlyRunning()

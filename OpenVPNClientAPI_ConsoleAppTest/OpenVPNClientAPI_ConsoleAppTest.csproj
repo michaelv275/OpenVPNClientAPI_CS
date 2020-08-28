@@ -54,7 +54,7 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>OpenVPNClientAPI_ConsoleAppTest.SwitchConnection_Example</StartupObject>
+    <StartupObject>OpenVPNClientAPI_ConsoleAppTest.SingleConnection_Example</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -75,14 +75,10 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\OpenVpnClientApi_CS\OpenVpnClientApi_CS.csproj">
-      <Project>{cb6314a2-6afa-41b9-92d3-443706b0423f}</Project>
-      <Name>OpenVpnClientApi_CS</Name>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /Y "$(SolutionDir)Output\$(Platform)\$(Configuration)\" "$(ProjectDir)$(OutDir)"</PostBuildEvent>
+    <PostBuildEvent>copy /Y "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\" "$(ProjectDir)$(OutDir)"
+copy /Y "$(SolutionDir)OpenVpnClientApi_CS\bin\$(Configuration)\" "$(ProjectDir)$(OutDir)"
+</PostBuildEvent>
   </PropertyGroup>
 </Project>

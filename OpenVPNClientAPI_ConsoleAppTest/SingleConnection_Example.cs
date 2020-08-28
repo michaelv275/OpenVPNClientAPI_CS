@@ -8,7 +8,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 {
     class SingleConnection_Example
     {
-        static readonly string _vpnConfig = "Enter the VPN config string or location";
+        static readonly string _vpnConfig = @"C:\Dispel\DispelRepos\OpenVPNClientApiCSharp\OpenVPNClientAPI_UnitTest\VpnBookConfigs\enclave.ovpn";
         private static readonly string _vpnCredUsername = "username";
         private static readonly string _vpnCredPassword = "password";
 
@@ -16,7 +16,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
         private static bool _vpnUsesCredentialAuth = true;
 
         //This test will allow the connection to be alive 60 seconds before stopping. 
-        private static readonly int _vpnConnectionDurationSeconds = 60;
+        private static readonly int _vpnConnectionDurationSeconds = 20;
 
         public static Client VPNManager = new Client();
 

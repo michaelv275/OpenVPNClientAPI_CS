@@ -83,12 +83,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\vcpkg\installed\x64-windows\include;C:\Dispel\DispelRepos\OpenVPNClientApiCSharp\OpenVPNClientApiLibrary_CPP\ThirdPartyLibraries\openvpn3;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)Output\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(ProjectDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\vcpkg\installed\x64-windows\include;C:\Dispel\DispelRepos\OpenVPNClientApiCSharp\OpenVPNClientApiLibrary_CPP\ThirdPartyLibraries\openvpn3;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)Output\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(ProjectDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -144,6 +144,20 @@
       <AdditionalLibraryDirectories>$(WindowsSDK_IncludePath)</AdditionalLibraryDirectories>
       <AdditionalDependencies>C:\vcpkg\installed\x64-windows\debug\lib\libssl.lib;fwpuclnt.lib;iphlpapi.lib;wininet.lib;setupapi.lib;rpcrt4.lib;wtsapi32.lib;C:\vcpkg\installed\x64-windows\debug\lib\lz4d.lib;C:\vcpkg\installed\x64-windows\debug\lib\libcrypto.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Message>Moving C++ dlls and lib to solution Output folder</Message>
+      <Command>copy /Y "$(OutDir)*.dll*" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\"
+copy /Y "$(OutDir)*.lib" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\"
+copy /Y "$(OutDir)*.obj" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\"
+copy /Y "$(OutDir)*.cxx" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\"
+copy /Y "$(OutDir)*.exp" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\"</Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>copy /Y "$(ProjectDir)Dependencies\$(Configuration)" "$(ProjectDir)$(Platform)\$(Configuration)\"</Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Message>Moving vcpkg dependencies</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -170,6 +184,20 @@
       <AdditionalLibraryDirectories>$(WindowsSDK_IncludePath)</AdditionalLibraryDirectories>
       <AdditionalDependencies>C:\vcpkg\installed\x64-windows\debug\lib\libssl.lib;fwpuclnt.lib;iphlpapi.lib;wininet.lib;setupapi.lib;rpcrt4.lib;wtsapi32.lib;C:\vcpkg\installed\x64-windows\debug\lib\lz4d.lib;C:\vcpkg\installed\x64-windows\debug\lib\libcrypto.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(OutDir)*.dll*" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\"
+copy /Y "$(OutDir)*.lib" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\"
+copy /Y "$(OutDir)*.obj" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\"
+copy /Y "$(OutDir)*.cxx" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\"
+copy /Y "$(OutDir)*.exp" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\"</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>Coppying dll and lib to solution Output folder so that all references can be in one spot</Message>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>copy /Y "$(ProjectDir)Dependencies\$(Configuration)" "$(ProjectDir)$(Platform)\$(Configuration)\"</Command>
+      <Message>Moving vcpkg dependencies</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
@@ -178,7 +206,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="openvpncli_wrap.cxx" />
+    <ClCompile Include="openvpncli_wrap.cxx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+    </ClCompile>
     <ClCompile Include="ThirdPartyLibraries\openvpn3\client\ovpncli.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -4,7 +4,7 @@
     <id>$id$</id>
     <version>$version$</version>
     <title>$title$</title>
-    <authors>Dispel</authors>
+    <authors>$author$</authors>
     <owners>$author$</owners>
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <license type="expression">AGPL-3.0-or-later</license>
@@ -22,6 +22,7 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\Output\x64\Release\*.*" target="lib\net45" />
+    <file src="..\CPP_DLL_Lib_Ouput\x64\$configuration$\*.*" target="lib\net45" />
+    <file src="bin\$configuration$\*.*" target="lib\net45" />
   </files>
 </package>

@@ -107,12 +107,12 @@ namespace OpenVpnClientApi_CS
         public void SetConfigWithMultiLineString(string configAsMultiLineString)
         {
             // load/evaluate config
-            _configData = new ClientAPI_Config();
+            ConfigData = new ClientAPI_Config();
 
-            _configData.content = configAsMultiLineString;
-            _configData.compressionMode = "yes";
+            ConfigData.content = configAsMultiLineString;
+            ConfigData.compressionMode = "yes";
 
-            _configEvaluator = _clientThread.eval_config(_configData);
+            ConfigEvaluator = _clientThread.eval_config(ConfigData);
 
             if (_configEvaluator.error)
             {

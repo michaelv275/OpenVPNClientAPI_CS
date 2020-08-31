@@ -8,16 +8,16 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 {
     class SwitchConnection_Example
     {
-        static readonly string _config1 = @"C:\Dispel\DispelRepos\OpenVPNClientApiCSharp\OpenVPNClientAPI_UnitTest\VpnBookConfigs\vpnbook-us1-tcp80.ovpn";
-        static readonly string _config2 = @"C:\Dispel\DispelRepos\OpenVPNClientApiCSharp\OpenVPNClientAPI_UnitTest\VpnBookConfigs\enclave.ovpn";
-        private static readonly string _vpnCredUsername = "vpnbook";
-        private static readonly string _vpnCredPassword = "Y6WtuUG";
+        static readonly string _config1 = "Config 1 file or string";
+        static readonly string _config2 = "Config 2 file or string";
+        private static readonly string _vpnCredUsername = "Username";
+        private static readonly string _vpnCredPassword = "Password";
 
         //Be sure to set this if your VPN server requires authentication
         private static bool _vpnUsesCredentialAuth = true;
 
         //This test will allow the connection to be alive 60 seconds before stopping. 
-        private static readonly int _vpnConnectionDurationSeconds = 150;
+        private static readonly int _vpnConnectionDurationSeconds = 60;
 
         //Thi will hold the new config location after the first one is stopped
         private static string _switchConnectionConfigLocation;

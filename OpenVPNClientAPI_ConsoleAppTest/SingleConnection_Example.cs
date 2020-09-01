@@ -8,15 +8,15 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 {
     class SingleConnection_Example
     {
-        static readonly string _vpnConfig = @"File Location or config string";
+        static readonly string _vpnConfig = "Config string or file location";
         private static readonly string _vpnCredUsername = "username";
         private static readonly string _vpnCredPassword = "password";
 
         //Be sure to set this if your VPN server requires authentication
-        private static bool _vpnUsesCredentialAuth = false;
+        private static bool _vpnUsesCredentialAuth = true;
 
         //This test will allow the connection to be alive 60 seconds before stopping. 
-        private static readonly int _vpnConnectionDurationSeconds = 20;
+        private static readonly int _vpnConnectionDurationSeconds = 60;
 
         public static Client VPNManager = new Client();
 
@@ -36,7 +36,8 @@ namespace OpenVPNClientAPI_ConsoleAppTest
             try
             {
                 VPNManager.ConnectionEstablished += VPNManager_ConnectionEstablished;
-                VPNManager.ConnectionClosed += VPNManager_ConnectionClosed; ;
+                VPNManager.ConnectionClosed += VPNManager_ConnectionClosed;
+                //VPNManager.ConnectionTimedOut += Custom Connection Timeout handler
                 //VPNManager.CoreEventReceived += Custom Core Event Handler
                 //VPNManager.LogReceived += Custom Logging Event Handler
 
@@ -84,7 +85,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 
             if (!_vpnUsesCredentialAuth)
             {
-                var x = VPNManager.AddCredentials(false);
+                VPNManager.AddCredentials(false);
             }
             else
             {

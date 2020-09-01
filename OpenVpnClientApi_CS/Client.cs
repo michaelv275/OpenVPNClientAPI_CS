@@ -25,6 +25,12 @@ namespace OpenVpnClientApi_CS
         public event EventHandler ConnectionEstablished;
 
         /// <summary>
+        /// Event handler for the ConnectionTimedOut event
+        /// Default is to write "Connection request timed out" to the console
+        /// </summary>
+        public event EventHandler ConnectionTimedOut;
+
+        /// <summary>
         /// Event handler for the Log and Stat events
         /// Default is to log the message to the console.
         /// </summary>
@@ -35,6 +41,7 @@ namespace OpenVpnClientApi_CS
         /// Default is to log the message to the console.
         /// </summary>
         public event EventHandler<ClientAPI_Event> CoreEventReceived;
+
 
         public OpenVPNClientThread ClientThread { get => _clientThread; set => _clientThread = value; }
         public ClientAPI_Config ConfigData { get => _configData; set => _configData = value; }
@@ -97,6 +104,18 @@ namespace OpenVpnClientApi_CS
             else
             {
                 Console.WriteLine(logMessage);
+            }
+        }
+
+        private void OnConnectionTimedOut()
+        {
+            if (CoreEventReceived != null)
+            {
+                ConnectionTimedOut.Invoke(this, new EventArgs());
+            }
+            else
+            {
+                Console.WriteLine("The connection request has timed out");
             }
         }
 
@@ -264,7 +283,7 @@ namespace OpenVpnClientApi_CS
         /// Fired when connection is started, stopped, or cancelled
         /// Any event returned from the CoreLibrary goes through here.
         /// 
-        /// If the event was a connected or disconnected event, the OnConnectionAttemptCompleted and/or OnConnectionClosed events will be fired
+        /// If the event was a connected event, the OnConnectionAttemptCompleted event will be fired
         /// </summary>
         /// <param name="apiEvent"></param>
         public void Event_(ClientAPI_Event apiEvent)
@@ -313,7 +332,14 @@ namespace OpenVpnClientApi_CS
         /// <returns></returns>
         public bool PauseOnConnectionTimeout()
         {
-            return false;
+            bool shouldPause = false;
+
+            if (!shouldPause)
+            {
+                OnConnectionTimedOut();
+            }
+            
+            return shouldPause;
         }
 
         /// <summary>

@@ -5,6 +5,14 @@ using System.IO;
 
 namespace OpenVpnClientApi_CS
 {
+    /// <summary>
+    /// ***ELEVATED PRIVILEGES ARE REQUIRED*** to make changes to the routing table in Windows 10. Ensure your app is eleavted before calling any methods in this API.
+    /// 
+    /// This class is the entry point to use the API in C#. It also serves as the event receiver, so all openvpn events will be caught using the public events here. 
+    /// By default, the events will be written to a console window. It is up to the implementer of the API to handle the events they wish.
+    /// All methods and properties in this class exist solely in .NET and do not interact directly with the openVPN3 library. 
+    /// Instead, the methods in this class will utilize the OpenVPNClientThread.cs object to interact with the underlying C++ openVPN3 library.
+    /// </summary>
     public class Client : IEventReceiver
     {
         private OpenVPNClientThread _clientThread;

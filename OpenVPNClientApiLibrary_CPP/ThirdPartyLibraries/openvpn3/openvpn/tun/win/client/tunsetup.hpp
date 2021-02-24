@@ -42,6 +42,7 @@
 #include <openvpn/tun/proxy.hpp>
 #include <openvpn/tun/win/tunutil.hpp>
 #include <openvpn/tun/win/winproxy.hpp>
+#include <openvpn/tun/win/tunutil.hpp>
 #include <openvpn/tun/win/client/setupbase.hpp>
 #include <openvpn/win/scoped_handle.hpp>
 #include <openvpn/win/cmd.hpp>
@@ -52,6 +53,13 @@
 #endif
 
 #include <versionhelpers.h>
+
+// use IP Helper on Windows by default
+#ifdef OPENVPN_USE_NETSH
+#define TUNWINDOWS Util::TunNETSH
+#else
+#define TUNWINDOWS Util::TunIPHELPER
+#endif
 
 namespace openvpn {
   namespace TunWin {
@@ -83,6 +91,7 @@ namespace openvpn {
 	Util::TapNameGuidPair tap;
 	Win::ScopedHANDLE th(Util::tap_open(guids, path_opened, tap, wintun));
 	const std::string msg = "Open TAP device \"" + tap.name + "\" PATH=\"" + path_opened + '\"';
+	vpn_interface_index_ = tap.index;
 
 	if (!th.defined())
 	  {
@@ -196,6 +205,8 @@ namespace openvpn {
 	  }
 
 	delete_route_timer.cancel();
+
+	vpn_interface_index_ = DWORD(-1);
       }
 
       virtual ~Setup()
@@ -204,17 +215,28 @@ namespace openvpn {
 	destroy(os);
       }
 
-      static void add_bypass_route(const std::string& route,
+      DWORD vpn_interface_index() const
+      {
+	return vpn_interface_index_;
+      }
+
+      static void add_bypass_route(const Util::BestGateway& gw,
+				   const std::string& route,
 				   bool ipv6,
 				   ActionList& add_cmds,
 				   ActionList& remove_cmds_bypass_gw)
       {
-	const Util::DefaultGateway gw;
-
 	if (!ipv6)
 	  {
-	    add_cmds.add(new WinCmd("netsh interface ip add route " + route + "/32 " + to_string(gw.interface_index()) + ' ' + gw.gateway_address() + " store=active"));
-	    remove_cmds_bypass_gw.add(new WinCmd("netsh interface ip delete route " + route + "/32 " + to_string(gw.interface_index()) + ' ' + gw.gateway_address() + " store=active"));
+	    if (!gw.local_route())
+	      {
+		add_cmds.add(new WinCmd("netsh interface ip add route " + route + "/32 " + to_string(gw.interface_index()) + ' ' + gw.gateway_address() + " store=active"));
+		remove_cmds_bypass_gw.add(new WinCmd("netsh interface ip delete route " + route + "/32 " + to_string(gw.interface_index()) + ' ' + gw.gateway_address() + " store=active"));
+	      }
+	    else
+	      {
+		OPENVPN_LOG("Skip bypass route to " << route << ", route is local");
+	      }
 	  }
       }
 
@@ -310,9 +332,6 @@ namespace openvpn {
 
 	// special IPv6 next-hop recognized by TAP driver (magic)
 	const std::string ipv6_next_hop = "fe80::8";
-
-	// get default gateway
-	const Util::DefaultGateway gw;
 
 	// set local4 and local6 to point to IPv4/6 route configurations
 	const TunBuilderCapture::RouteAddress* local4 = pull.vpn_ipv4();
@@ -435,11 +454,11 @@ namespace openvpn {
 	{
 	  for (auto &route : pull.add_routes)
 	    {
-	      const std::string metric = route_metric_opt(pull, route, MT_NETSH);
 	      if (route.ipv6)
 		{
 		  if (!pull.block_ipv6)
 		    {
+		      const std::string metric = route_metric_opt(pull, route, MT_NETSH);
 		      create.add(new WinCmd("netsh interface ipv6 add route " + route.address + '/' + to_string(route.prefix_length) + ' ' + tap_index_name + ' ' + ipv6_next_hop + metric + " store=active"));
 		      destroy.add(new WinCmd("netsh interface ipv6 delete route " + route.address + '/' + to_string(route.prefix_length) + ' ' + tap_index_name + ' ' + ipv6_next_hop + " store=active"));
 		    }
@@ -448,8 +467,11 @@ namespace openvpn {
 		{
 		  if (local4)
 		    {
-		      create.add(new WinCmd("netsh interface ip add route " + route.address + '/' + to_string(route.prefix_length) + ' ' + tap_index_name + ' ' + local4->gateway + metric + " store=active"));
-		      destroy.add(new WinCmd("netsh interface ip delete route " + route.address + '/' + to_string(route.prefix_length) + ' ' + tap_index_name + ' ' + local4->gateway + " store=active"));
+		      int metric = pull.route_metric_default;
+		      if (route.metric >= 0)
+			metric = route.metric;
+		      create.add(new TUNWINDOWS::AddRoute4Cmd(route.address, route.prefix_length, tap,  local4->gateway, metric, true));
+		      destroy.add(new TUNWINDOWS::AddRoute4Cmd(route.address, route.prefix_length, tap, local4->gateway, metric, false));
 		    }
 		  else
 		    throw tun_win_setup("IPv4 routes pushed without IPv4 ifconfig");
@@ -460,6 +482,7 @@ namespace openvpn {
 	// Process exclude routes
 	if (!pull.exclude_routes.empty())
 	  {
+	    const Util::BestGateway gw;
 	    if (gw.defined())
 	      {
 		bool ipv6_error = false;
@@ -486,17 +509,20 @@ namespace openvpn {
 	// Process IPv4 redirect-gateway
 	if (pull.reroute_gw.ipv4)
 	  {
-	    // add server bypass route
-	    if (gw.defined())
+	    // get default gateway
+	    const Util::BestGateway gw{ pull.remote_address.address, tap.index };
+
+	    if (!gw.local_route())
 	      {
-		if (!pull.remote_address.ipv6)
+		// add server bypass route
+		if (gw.defined())
 		  {
-		    create.add(new WinCmd("netsh interface ip add route " + pull.remote_address.address + "/32 " + to_string(gw.interface_index()) + ' ' + gw.gateway_address() + " store=active"));
-		    destroy.add(new WinCmd("netsh interface ip delete route " + pull.remote_address.address + "/32 " + to_string(gw.interface_index()) + ' ' + gw.gateway_address() + " store=active"));
+		    if (!pull.remote_address.ipv6 && !(pull.reroute_gw.flags & RedirectGatewayFlags::RG_LOCAL))
+		      add_bypass_route(gw, pull.remote_address.address, false, create, destroy);
 		  }
+		else
+		  throw tun_win_setup("redirect-gateway error: cannot find gateway for bypass route");
 	      }
-	    else
-	      throw tun_win_setup("redirect-gateway error: cannot detect default gateway");
 
 	    create.add(new WinCmd("netsh interface ip add route 0.0.0.0/1 " + tap_index_name + ' ' + local4->gateway + " store=active"));
 	    create.add(new WinCmd("netsh interface ip add route 128.0.0.0/1 " + tap_index_name + ' ' + local4->gateway + " store=active"));
@@ -910,6 +936,7 @@ namespace openvpn {
       std::unique_ptr<std::thread> l2_thread;
       std::unique_ptr<L2State> l2_state;
 
+      DWORD vpn_interface_index_ = DWORD(-1);
       ActionList::Ptr remove_cmds;
 
       AsioTimer delete_route_timer;

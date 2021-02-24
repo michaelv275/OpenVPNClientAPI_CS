@@ -210,12 +210,32 @@ namespace openvpn {
 	  throw ip_exception("address is not IPv4");
       }
 
+      IPv4::Addr to_ipv4_zero() const
+      {
+	if (ver == V4)
+	  return u.v4;
+	else if (ver == UNSPEC)
+	  return IPv4::Addr::from_zero();
+	else
+	  throw ip_exception("address is not IPv4 (zero)");
+      }
+
       const IPv6::Addr& to_ipv6() const
       {
 	if (ver == V6)
 	  return u.v6;
 	else
 	  throw ip_exception("address is not IPv6");
+      }
+
+      IPv6::Addr to_ipv6_zero() const
+      {
+	if (ver == V6)
+	  return u.v6;
+	else if (ver == UNSPEC)
+	  return IPv6::Addr::from_zero();
+	else
+	  throw ip_exception("address is not IPv6 (zero)");
       }
 
       const IPv4::Addr& to_ipv4_nocheck() const
@@ -907,10 +927,10 @@ namespace openvpn {
 	  }
       }
 
-#ifdef HAVE_CITYHASH
+#ifdef USE_OPENVPN_HASH
       std::size_t hashval() const
       {
-	HashSizeT h;
+	Hash64 h;
 	hash(h);
 	return h.value();
       }
@@ -1004,7 +1024,7 @@ namespace openvpn {
   }
 }
 
-#ifdef HAVE_CITYHASH
+#ifdef USE_OPENVPN_HASH
 OPENVPN_HASH_METHOD(openvpn::IP::Addr, hashval);
 #endif
 

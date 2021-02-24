@@ -21,8 +21,7 @@
 
 // Parse the tls-version-min option.
 
-#ifndef OPENVPN_SSL_TLSVER_H
-#define OPENVPN_SSL_TLSVER_H
+#pragma once
 
 #include <string>
 
@@ -113,5 +112,3 @@ namespace openvpn {
     }
   }
 }
-
-#endif

@@ -100,7 +100,7 @@
 #include <openvpn/pt/ptproxy.hpp>
 #endif
 
-#if defined(ENABLE_DCO)
+#if defined(ENABLE_KOVPN) || defined(ENABLE_OVPNDCO)
 #include <openvpn/dco/dcocli.hpp>
 #endif
 
@@ -221,7 +221,7 @@ namespace openvpn {
       rng.reset(new SSLLib::RandomAPI(false));
       prng.reset(new SSLLib::RandomAPI(true));
 
-#if defined(ENABLE_DCO) && !defined(OPENVPN_FORCE_TUN_NULL) && !defined(OPENVPN_EXTERNAL_TUN_FACTORY)
+#if (defined(ENABLE_KOVPN) || defined(ENABLE_OVPNDCO)) && !defined(OPENVPN_FORCE_TUN_NULL) && !defined(OPENVPN_EXTERNAL_TUN_FACTORY)
       if (config.dco)
 	dco = DCOTransport::new_controller();
 #else
@@ -238,7 +238,7 @@ namespace openvpn {
       tcp_queue_limit = opt.get_num<decltype(tcp_queue_limit)>("tcp-queue-limit", 1, tcp_queue_limit, 1, 65536);
 
       // route-nopull
-      pushed_options_filter.reset(new PushedOptionsFilter(opt.exists("route-nopull")));
+      pushed_options_filter.reset(new PushedOptionsFilter(opt));
 
       // OpenVPN Protocol context (including SSL)
       cp_main = proto_config(opt, config, pcc, false);
@@ -716,9 +716,6 @@ namespace openvpn {
       if (relay_mode)
 	lflags |= SSLConfigAPI::LF_RELAY_MODE;
 
-      if (opt.exists("allow-name-constraints"))
-	lflags |= SSLConfigAPI::LF_ALLOW_NAME_CONSTRAINTS;
-
       // client SSL config
       SSLLib::SSLAPI::Config::Ptr cc(new SSLLib::SSLAPI::Config());
       cc->set_external_pki_callback(config.external_pki);
@@ -790,6 +787,7 @@ namespace openvpn {
 	  transconf.frame = frame;
 	  transconf.stats = cli_stats;
 	  transconf.server_addr_float = server_addr_float;
+	  transconf.socket_protect = socket_protect;
 	  transport_factory = dco->new_transport_factory(transconf);
 	}
       else if (alt_proxy)

@@ -200,6 +200,14 @@ namespace openvpn {
 	return addr.to_string() + ' ' + netmask().to_string();
       }
 
+      std::string to_string_optional_prefix_len() const
+      {
+	if (prefix_len == addr.size())
+	  return addr.to_string();
+	else
+	  return addr.to_string() + '/' + openvpn::to_string(prefix_len);
+      }
+
       bool operator==(const RouteType& other) const
       {
 	return std::tie(prefix_len, addr) == std::tie(other.prefix_len, other.addr);
@@ -222,10 +230,10 @@ namespace openvpn {
 	h(prefix_len);
       }
 
-#ifdef HAVE_CITYHASH
+#ifdef USE_OPENVPN_HASH
       std::size_t hash_value() const
       {
-	HashSizeT h;
+	Hash64 h;
 	hash(h);
 	return h.value();
       }
@@ -345,7 +353,7 @@ namespace openvpn {
   }
 }
 
-#ifdef HAVE_CITYHASH
+#ifdef USE_OPENVPN_HASH
 OPENVPN_HASH_METHOD(openvpn::IP::Route, hash_value);
 OPENVPN_HASH_METHOD(openvpn::IP::Route4, hash_value);
 OPENVPN_HASH_METHOD(openvpn::IP::Route6, hash_value);

@@ -1,6 +1,6 @@
 ﻿namespace OpenVpnClientApi_CS.Interfaces
 {
-    public interface IEventReceiver
+    internal interface IEventReceiver
     {
         // Called with events from core. Event is a reserved word, so it is renamed Event_
         void Event_(ClientAPI_Event apiEvent);

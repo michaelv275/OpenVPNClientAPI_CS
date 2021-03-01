@@ -20,6 +20,7 @@ namespace OpenVpnClientApi_CS
         private ClientAPI_ProvideCreds _configCreds;
         private ClientAPI_EvalConfig _configEvaluator;
 
+        #region Public events
         /// <summary>
         /// Event handler for the ConnectionClosed event
         /// Default is to write "Disconnected from VPN" to the console. 
@@ -49,12 +50,7 @@ namespace OpenVpnClientApi_CS
         /// Default is to log the message to the console.
         /// </summary>
         public event EventHandler<ClientAPI_Event> CoreEventReceived;
-
-
-        public OpenVPNClientThread ClientThread { get => _clientThread; set => _clientThread = value; }
-        public ClientAPI_Config ConfigData { get => _configData; set => _configData = value; }
-        public ClientAPI_ProvideCreds ConfigCreds { get => _configCreds; set => _configCreds = value; }
-        public ClientAPI_EvalConfig ConfigEvaluator { get => _configEvaluator; set => _configEvaluator = value; }
+        #endregion
 
         /// <summary>
         /// creates a new Client object and initializes the C++ implementation Object, a new OpenVPNClientThread object
@@ -62,8 +58,6 @@ namespace OpenVpnClientApi_CS
         /// </summary>
         public Client()
         {
-            LoadCore();
-
             SetDefaultManagementComponents();
         }
 
@@ -134,12 +128,14 @@ namespace OpenVpnClientApi_CS
         public void SetConfigWithMultiLineString(string configAsMultiLineString)
         {
             // load/evaluate config
-            ConfigData = new ClientAPI_Config();
+            _configData = new ClientAPI_Config();
 
-            ConfigData.content = configAsMultiLineString;
-            ConfigData.compressionMode = "yes";
+            _configData.content = configAsMultiLineString;
+            _configData.compressionMode = "yes";
+            //TODO add option?
+            //_configData.tunPersist = false;
 
-            ConfigEvaluator = _clientThread.eval_config(ConfigData);
+            _configEvaluator = _clientThread.eval_config(_configData);
 
             if (_configEvaluator.error)
             {
@@ -196,20 +192,20 @@ namespace OpenVpnClientApi_CS
 
             if (useCredentials)
             {
-                if (!ConfigEvaluator.autologin)
+                if (!_configEvaluator.autologin)
                 {
                     if (!String.IsNullOrEmpty(username))
                     {
-                        ConfigCreds.username = username;
-                        ConfigCreds.password = password;
-                        ConfigCreds.replacePasswordWithSessionID = true;
+                        _configCreds.username = username;
+                        _configCreds.password = password;
+                        _configCreds.replacePasswordWithSessionID = true;
                     }
                 }
             }
 
             if (_configCreds != null)
             {
-                credentialStatus = ClientThread.provide_creds(_configCreds);
+                credentialStatus = _clientThread.provide_creds(_configCreds);
             }
             else
             {
@@ -226,7 +222,7 @@ namespace OpenVpnClientApi_CS
         /// </summary>
         public void Connect()
         {
-            if (ClientThread.IsCurrentlyRunning())
+            if (_clientThread.IsCurrentlyRunning())
             {
                 string errorMessage = "Before starting another connection, the current client object must be stopped (clientObj.Stop()) ";
                 errorMessage += " Then, the object's config and credentials must be reset with the new values, then Connect() can be called";
@@ -235,7 +231,7 @@ namespace OpenVpnClientApi_CS
             }
             else
             {
-                ClientThread.Connect(this);
+                _clientThread.Connect(this);
             }
         }
 
@@ -244,7 +240,16 @@ namespace OpenVpnClientApi_CS
         /// </summary>
         public void Stop()
         {
-            ClientThread.Stop();
+            _clientThread.Stop();
+        }
+
+        /// <summary>
+        /// Checks if the VPN thread is not null and is alive
+        /// </summary>
+        /// <returns>Whether the VPN thread is currently in use</returns>
+        public bool isVPNActive()
+        {
+            return _clientThread.IsCurrentlyRunning();
         }
 
         /// <summary>
@@ -258,7 +263,7 @@ namespace OpenVpnClientApi_CS
             for (int i = 0; i < statCount; ++i)
             {
                 string name = OpenVPNClientThread.stats_name(i);
-                long value = ClientThread.stats_value(i);
+                long value = _clientThread.stats_value(i);
 
                 if (value > 0)
                 {
@@ -306,12 +311,20 @@ namespace OpenVpnClientApi_CS
             }
         }
 
+        /// <summary>
+        /// Callback to get a certificate
+        /// </summary>
+        /// <param name="req"></param>
         public void ExternalPkiCertRequest(ClientAPI_ExternalPKICertRequest req)
         {
             req.error = true;
             req.errorText = "cert request failed: external PKI not implemented";
         }
 
+        /// <summary>
+        /// Callback to sign data
+        /// </summary>
+        /// <param name="req"></param>
         public void ExternalPkiSignRequest(ClientAPI_ExternalPKISignRequest req)
         {
             req.error = true;
@@ -371,18 +384,12 @@ namespace OpenVpnClientApi_CS
             return null;
         }
 
-        private void LoadCore()
-        {
-            // Load OpenVPN core (implements ClientAPI_OpenVPNClient) from shared library 
-            ClientAPI_OpenVPNClient.init_process();
-        }
-
         private void SetDefaultManagementComponents()
         {
-            ClientThread = new OpenVPNClientThread() { Manager = this };
-            ConfigData = new ClientAPI_Config();
-            ConfigCreds = new ClientAPI_ProvideCreds();
-            ConfigEvaluator = null;
+            _clientThread = new OpenVPNClientThread() { Manager = this };
+            _configData = new ClientAPI_Config();
+            _configCreds = new ClientAPI_ProvideCreds();
+            _configEvaluator = null;
         }
     }
 }

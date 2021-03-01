@@ -247,7 +247,7 @@ namespace OpenVpnClientApi_CS
         /// Checks if the VPN thread is not null and is alive
         /// </summary>
         /// <returns>Whether the VPN thread is currently in use</returns>
-        public bool isVPNActive()
+        public bool IsVPNActive()
         {
             return _clientThread.IsCurrentlyRunning();
         }

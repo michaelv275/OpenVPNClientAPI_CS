@@ -82,7 +82,7 @@
             Stop the OpenVPNClientThread
             </summary>
         </member>
-        <member name="M:OpenVpnClientApi_CS.Client.isVPNActive">
+        <member name="M:OpenVpnClientApi_CS.Client.IsVPNActive">
             <summary>
             Checks if the VPN thread is not null and is alive
             </summary>

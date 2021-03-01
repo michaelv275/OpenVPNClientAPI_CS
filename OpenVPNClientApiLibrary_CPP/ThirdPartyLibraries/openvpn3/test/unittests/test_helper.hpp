@@ -21,6 +21,8 @@
 #pragma once
 
 #include <openvpn/log/logbase.hpp>
+#include <openvpn/common/exception.hpp>
+#include <openvpn/common/hexstr.hpp>
 #include <openvpn/random/mtrandapi.hpp>
 
 #include <iostream>
@@ -107,12 +109,18 @@ namespace openvpn {
       return getOutput();
     }
 
+    const Log::Context::Wrapper& log_wrapper()
+    {
+      return log_wrap;
+    }
+
   private:
     bool output_log = true;
     bool collect_log = false;
     std::stringstream out;
     std::mutex mutex{};
     Log::Context log_context;
+    Log::Context::Wrapper log_wrap; // must be constructed after log_context
   };
 }
 
@@ -228,16 +236,96 @@ inline std::string getSortedString(const std::string& output)
  * Predictable RNG that claims to be secure to be used in reproducable unit
  * tests
  */
-class FakeSecureMTRand : public openvpn::MTRand
+class FakeSecureRand : public openvpn::RandomAPI
 {
 public:
-  explicit FakeSecureMTRand(const rand_type::result_type seed) : openvpn::MTRand(seed)
+  FakeSecureRand(const unsigned char initial=0)
+    : next(initial)
   {
-
   }
 
-  bool is_crypto() const override
+  virtual std::string name() const override
+  {
+    return "FakeRNG";
+  }
+
+  virtual bool is_crypto() const override
   {
     return true;
   }
+
+  virtual void rand_bytes(unsigned char *buf, size_t size) override
+  {
+    rand_bytes_(buf, size);
+    //OPENVPN_LOG("RAND: " << openvpn::render_hex(buf, size));
+  }
+
+  virtual bool rand_bytes_noexcept(unsigned char *buf, size_t size) override
+  {
+    rand_bytes(buf, size);
+    return true;
+  }
+
+private:
+  // fake RNG -- just use an incrementing sequence
+  void rand_bytes_(unsigned char *buf, size_t size)
+  {
+    while (size--)
+      *buf++ = next++;
+  }
+
+  unsigned char next;
 };
+
+// googletest is missing the ability to test for specific
+// text inside a thrown exception, so we implement it here
+
+#define JY_EXPECT_THROW(statement, expected_exception, expected_text) \
+try { \
+    statement; \
+    OPENVPN_THROW_EXCEPTION("JY_EXPECT_THROW: no exception was thrown " << __FILE__ << ':' << __LINE__); \
+} \
+catch (const expected_exception& e) \
+{ \
+  if (std::string(e.what()).find(expected_text) == std::string::npos) \
+    OPENVPN_THROW_EXCEPTION("JY_EXPECT_THROW: did not find expected text in exception at " << __FILE__ << ':' << __LINE__); \
+}
+
+// googletest ASSERT macros can't be used inside constructors
+// or non-void-returning functions, so implement workaround here
+
+#define JY_ASSERT_TRUE(value) \
+{ \
+  if (!(value)) \
+    OPENVPN_THROW_EXCEPTION("JY_ASSERT_TRUE: failure at " << __FILE__ << ':' << __LINE__); \
+}
+
+#define JY_ASSERT_FALSE(value) \
+{ \
+  if (value) \
+    OPENVPN_THROW_EXCEPTION("JY_ASSERT_FALSE: failure at " << __FILE__ << ':' << __LINE__); \
+}
+
+#define JY_ASSERT_EQ(v1, v2) \
+{ \
+  if ((v1) != (v2)) \
+    OPENVPN_THROW_EXCEPTION("JY_ASSERT_EQ: failure at " << __FILE__ << ':' << __LINE__); \
+}
+
+#define JY_ASSERT_NE(v1, v2) \
+{ \
+  if ((v1) == (v2)) \
+    OPENVPN_THROW_EXCEPTION("JY_ASSERT_NE: failure at " << __FILE__ << ':' << __LINE__); \
+}
+
+#define JY_ASSERT_LE(v1, v2) \
+{ \
+  if ((v1) > (v2)) \
+    OPENVPN_THROW_EXCEPTION("JY_ASSERT_LE: failure at " << __FILE__ << ':' << __LINE__); \
+}
+
+#define JY_ASSERT_GE(v1, v2) \
+{ \
+  if ((v1) < (v2)) \
+    OPENVPN_THROW_EXCEPTION("JY_ASSERT_GE: failure at " << __FILE__ << ':' << __LINE__); \
+}

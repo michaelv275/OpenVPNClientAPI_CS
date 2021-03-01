@@ -24,7 +24,7 @@
 #ifndef OPENVPN_KOVPN_KOREKEY_H
 #define OPENVPN_KOVPN_KOREKEY_H
 
-#include <openvpn/kovpn/kocrypto.hpp>
+#include <openvpn/dco/kocrypto.hpp>
 
 namespace openvpn {
   namespace KoRekey {
@@ -130,11 +130,13 @@ namespace openvpn {
     public:
       Context(const CryptoAlgs::Type cipher,
 	      const CryptoAlgs::Type digest,
+	      const CryptoAlgs::KeyDerivation key_method,
 	      CryptoDCFactory& dc_factory_delegate,
 	      const Receiver::Ptr& rcv_arg,
 	      const Frame::Ptr& frame_arg)
-	: rcv(rcv_arg),
-	  dc_context_delegate(dc_factory_delegate.new_obj(cipher, digest)),
+	: CryptoDCContext(key_method),
+	  rcv(rcv_arg),
+	  dc_context_delegate(dc_factory_delegate.new_obj(cipher, digest, key_method)),
 	  frame(frame_arg)
       {
 	Key::validate(cipher, digest);
@@ -178,9 +180,10 @@ namespace openvpn {
       }
 
       virtual CryptoDCContext::Ptr new_obj(const CryptoAlgs::Type cipher,
-					   const CryptoAlgs::Type digest) override
+					   const CryptoAlgs::Type digest,
+					   const CryptoAlgs::KeyDerivation key_method) override
       {
-	return new Context(cipher, digest, *dc_factory_delegate, rcv, frame);
+	return new Context(cipher, digest, key_method, *dc_factory_delegate, rcv, frame);
       }
 
     private:

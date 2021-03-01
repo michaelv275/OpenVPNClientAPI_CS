@@ -59,6 +59,7 @@
 #include <openvpn/client/clicreds.hpp>
 #include <openvpn/client/cliconstants.hpp>
 #include <openvpn/client/clihalt.hpp>
+#include <openvpn/client/optfilt.hpp>
 #include <openvpn/time/asiotimer.hpp>
 #include <openvpn/time/coarsetime.hpp>
 #include <openvpn/time/durhelper.hpp>
@@ -78,6 +79,7 @@ namespace openvpn {
     struct NotifyCallback {
       virtual void client_proto_terminate() = 0;
       virtual void client_proto_connected() {}
+      virtual void client_proto_auth_pending_timeout(int timeout) {}
     };
 
     class Session : ProtoContext,
@@ -550,8 +552,16 @@ namespace openvpn {
 	if (!received_options.complete() && string::starts_with(msg, "PUSH_REPLY,"))
 	  {
 	    // parse the received options
-	    received_options.add(OptionList::parse_from_csv_static(msg.substr(11), &pushed_options_limit),
-				 pushed_options_filter.get());
+	    auto pushed_options_list = OptionList::parse_from_csv_static(msg.substr(11), &pushed_options_limit);
+	    try
+	      {
+		received_options.add(pushed_options_list, pushed_options_filter.get());
+	      }
+	    catch (const Option::RejectedException& e)
+	      {
+		ClientHalt ch("RESTART,rejected pushed option: " + e.err(), true);
+		process_halt_restart(ch);
+	      }
 	    if (received_options.complete())
 	      {
 		// show options
@@ -571,7 +581,7 @@ namespace openvpn {
 		// process auth-token
 		extract_auth_token(received_options);
 
-		// modify proto config (cipher, auth, and compression methods)
+		// modify proto config (cipher, auth, key-derivation and compression methods)
 		Base::process_push(received_options, *proto_context_options);
 
 		// initialize tun/routing
@@ -602,19 +612,8 @@ namespace openvpn {
 		// send the Connected event
 		cli_events->add_event(connected_);
 
-		// Issue an event if compression is enabled
-		CompressContext::Type comp_type = Base::conf().comp_ctx.type();
-		if (comp_type != CompressContext::NONE
-		    && !CompressContext::is_any_stub(comp_type))
-		{
-		  std::ostringstream msg;
-		  msg << (proto_context_options->is_comp_asym()
-			  ? "Asymmetric compression enabled.  Server may send compressed data."
-			  : "Compression enabled.");
-		  msg << "  This may be a potential security issue.";
-		  ClientEvent::Base::Ptr ev = new ClientEvent::CompressionEnabled(msg.str());
-		  cli_events->add_event(std::move(ev));
-		}
+		// check for proto options
+		check_proto_warnings();
 	      }
 	    else
 	      OPENVPN_LOG("Options continuation...");
@@ -681,14 +680,45 @@ namespace openvpn {
 	    ClientEvent::Base::Ptr ev = new ClientEvent::Info(msg.substr(9));
 	    cli_events->add_event(std::move(ev));
 	  }
-	else if (msg == "AUTH_PENDING")
+	else if (msg == "AUTH_PENDING" || string::starts_with(msg, "AUTH_PENDING,"))
 	  {
 	    // AUTH_PENDING indicates an out-of-band authentication step must
 	    // be performed before the server will send the PUSH_REPLY message.
 	    if (!auth_pending)
 	      {
 		auth_pending = true;
-		ClientEvent::Base::Ptr ev = new ClientEvent::AuthPending();
+		std::string key_words;
+
+		unsigned int timeout = 0;
+
+		if (string::starts_with(msg, "AUTH_PENDING,"))
+		  {
+		    key_words = msg.substr(::strlen("AUTH_PENDING,"));
+		    auto opts = OptionList::parse_from_csv_static(key_words, nullptr);
+		    std::string timeout_str = opts.get_optional("timeout", 1, 20);
+		    if (timeout_str != "")
+		      {
+			try
+			  {
+			    timeout = std::stoul(timeout_str);
+			    // Cap the timeout to end well before renegotiation starts
+			    timeout = std::min(timeout, static_cast<decltype(timeout)>(conf().renegotiate.to_seconds() / 2));
+			  }
+			catch (const std::logic_error& e)
+			  {
+			    OPENVPN_LOG("could not parse AUTH_PENDING timeout: " << timeout_str);
+			  }
+		      }
+		  }
+
+
+
+		if (notify_callback && timeout > 0)
+		  {
+		    notify_callback->client_proto_auth_pending_timeout(timeout);
+		  }
+
+		ClientEvent::Base::Ptr ev = new ClientEvent::AuthPending(timeout, key_words);
 		cli_events->add_event(std::move(ev));
 	      }
 	  }
@@ -855,9 +885,32 @@ namespace openvpn {
 	    cli_events->add_event(std::move(ev));
 	  }
 
-	if (tls_warnings & SSLAPI::TLS_WARN_NAME_CONSTRAINTS)
+	if (tls_warnings & SSLAPI::TLS_WARN_SIG_SHA1)
 	  {
-	    ClientEvent::Base::Ptr ev = new ClientEvent::Warn("TLS: Your CA contains a 'x509v3 Name Constraints' extension, but its validation is not supported. This might be a security breach, please contact your administrator.");
+	    ClientEvent::Base::Ptr ev = new ClientEvent::Warn("TLS: received certificate signed with SHA1. Please inform your admin to upgrade to a stronger algorithm. Support for SHA1 signatures will be dropped in the future");
+	    cli_events->add_event(std::move(ev));
+	  }
+      }
+
+      void check_proto_warnings()
+      {
+	if (uses_bs64_cipher())
+	  {
+	    ClientEvent::Base::Ptr ev = new ClientEvent::Warn("Proto: Using a 64-bit block cipher that is vulnerable to the SWEET32 attack. Please inform your admin to upgrade to a stronger algorithm. Support for 64-bit block cipher will be dropped in the future.");
+	    cli_events->add_event(std::move(ev));
+	  }
+
+	// Issue an event if compression is enabled
+	CompressContext::Type comp_type = Base::conf().comp_ctx.type();
+	if (comp_type != CompressContext::NONE
+	  && !CompressContext::is_any_stub(comp_type))
+	  {
+	    std::ostringstream msg;
+	    msg << (proto_context_options->is_comp_asym()
+		    ? "Asymmetric compression enabled.  Server may send compressed data."
+		    : "Compression enabled.");
+	    msg << "  This may be a potential security issue.";
+	    ClientEvent::Base::Ptr ev = new ClientEvent::CompressionEnabled(msg.str());
 	    cli_events->add_event(std::move(ev));
 	  }
       }

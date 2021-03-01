@@ -5,6 +5,7 @@
 //               packet compression.
 //
 //    Copyright (C) 2012-2020 OpenVPN Inc.
+//    Copyright (C) 2020-2020 Lev Stipakov <lev@openvpn.net>
 //
 //    This program is free software: you can redistribute it and/or modify
 //    it under the terms of the GNU Affero General Public License Version 3
@@ -19,37 +20,25 @@
 //    along with this program in the COPYING file.
 //    If not, see <http://www.gnu.org/licenses/>.
 
-// OpenVPN 3 kovpn-based tun interface
-
-#include <cstring>
-#include <openvpn/common/exception.hpp>
-#include <openvpn/kovpn/kovpn.hpp>
-
-
 #pragma once
-namespace openvpn
-{
-  namespace KoTun
-  {
-    OPENVPN_EXCEPTION(kotun_error);
 
-    struct DevConf
-    {
-	DevConf()
-	    : dc{}
-	{
-	  std::memset(&dc, 0, sizeof(dc));
-	}
+namespace openvpn {
+namespace KoRekey {
 
-	void set_dev_name(const std::string& name)
-	{
-	  if (name.length() < IFNAMSIZ)
-	    ::strcpy(dc.dev_name, name.c_str());
-	  else
-	    OPENVPN_THROW(kotun_error, "ovpn dev name too long");
-	}
+struct KeyDirection {
+  const unsigned char *cipher_key;
+  unsigned char nonce_tail[8];  // only AEAD
+  unsigned int cipher_key_size;
+};
 
-	struct ovpn_dev_init dc;
-    };
-  }
-}
+struct KeyConfig {
+  KeyDirection encrypt;
+  KeyDirection decrypt;
+
+  int key_id;
+  int remote_peer_id;
+  unsigned int cipher_alg;
+};
+
+} // namespace KoRekey
+} // namespace openvpn

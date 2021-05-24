@@ -100,7 +100,7 @@
 #include <openvpn/pt/ptproxy.hpp>
 #endif
 
-#if defined(ENABLE_KOVPN) || defined(ENABLE_OVPNDCO)
+#if defined(ENABLE_KOVPN) || defined(ENABLE_OVPNDCO) || defined(ENABLE_OVPNDCOWIN)
 #include <openvpn/dco/dcocli.hpp>
 #endif
 
@@ -126,6 +126,7 @@ namespace openvpn {
       std::string hw_addr_override;
       std::string platform_version;
       Protocol proto_override;
+      IP::Addr::Version proto_version_override = IP::Addr::Version::UNSPEC;
       IPv6Setting ipv6;
       int conn_timeout = 0;
       SessionStats::Ptr cli_stats;
@@ -221,7 +222,7 @@ namespace openvpn {
       rng.reset(new SSLLib::RandomAPI(false));
       prng.reset(new SSLLib::RandomAPI(true));
 
-#if (defined(ENABLE_KOVPN) || defined(ENABLE_OVPNDCO)) && !defined(OPENVPN_FORCE_TUN_NULL) && !defined(OPENVPN_EXTERNAL_TUN_FACTORY)
+#if (defined(ENABLE_KOVPN) || defined(ENABLE_OVPNDCO) || defined(ENABLE_OVPNDCOWIN)) && !defined(OPENVPN_FORCE_TUN_NULL) && !defined(OPENVPN_EXTERNAL_TUN_FACTORY)
       if (config.dco)
 	dco = DCOTransport::new_controller();
 #else
@@ -256,23 +257,24 @@ namespace openvpn {
 
       // load remote list
       if (config.remote_override)
+	{
 	  remote_list.reset(new RemoteList(config.remote_override));
-	else
-	  remote_list.reset(new RemoteList(opt, "", RemoteList::WARN_UNSUPPORTED, nullptr));
+	  remote_list->set_random(prng);
+	}
+      else
+	remote_list.reset(new RemoteList(opt, "", RemoteList::WARN_UNSUPPORTED, nullptr, prng));
       if (!remote_list->defined())
 	throw option_error("no remote option specified");
-
-      // Set remote list prng
-      remote_list->set_random(prng);
 
       // If running in tun_persist mode, we need to do basic DNS caching so that
       // we can avoid emitting DNS requests while the tunnel is blocked during
       // reconnections.
       remote_list->set_enable_cache(config.tun_persist);
 
-      // process server/port overrides
+      // process server/port/family overrides
       remote_list->set_server_override(config.server_override);
       remote_list->set_port_override(config.port_override);
+      remote_list->set_proto_version_override(config.proto_version_override);
 
       // process protocol override, should be called after set_enable_cache
       remote_list->handle_proto_override(config.proto_override,
@@ -328,6 +330,9 @@ namespace openvpn {
 	  DCO::TunConfig tunconf;
 #if defined(USE_TUN_BUILDER)
 	  dco->builder = config.builder;
+#endif
+#if defined(OPENVPN_COMMAND_AGENT) && defined(OPENVPN_PLATFORM_WIN)
+	  tunconf.setup_factory = WinCommandAgent::new_agent(opt);
 #endif
 	  tunconf.tun_prop.layer = layer;
 	  tunconf.tun_prop.session_name = session_name;
@@ -440,7 +445,7 @@ namespace openvpn {
 	    tunconf->frame = frame;
 	    tunconf->stats = cli_stats;
 	    tunconf->stop = config.stop;
-	    tunconf->wintun = config.wintun;
+	    tunconf->tun_type = config.wintun ? TunWin::Wintun : TunWin::TapWindows6;
 	    if (config.tun_persist)
 	      {
 		tunconf->tun_persist.reset(new TunWin::TunPersist(true, false, nullptr));
@@ -635,7 +640,16 @@ namespace openvpn {
 
     void submit_creds(const ClientCreds::Ptr& creds_arg)
     {
-      if (creds_arg && !creds_locked)
+      if (!creds_arg)
+	return;
+
+      // Override HTTP proxy credentials if provided dynamically
+      if (http_proxy_options && creds_arg->http_proxy_username_defined())
+	http_proxy_options->username = creds_arg->get_http_proxy_username();
+      if (http_proxy_options && creds_arg->http_proxy_password_defined())
+	http_proxy_options->password = creds_arg->get_http_proxy_password();
+
+      if (!creds_locked)
 	{
 	  // if no username is defined in creds and userlocked_username is defined
 	  // in profile, set the creds username to be the userlocked_username

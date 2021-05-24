@@ -433,6 +433,7 @@ namespace openvpn {
 	std::string server_override;
 	std::string port_override;
 	Protocol proto_override;
+	IP::Addr::Version proto_version_override;
 	IPv6Setting ipv6;
 	int conn_timeout = 0;
 	bool tun_persist = false;
@@ -452,7 +453,7 @@ namespace openvpn {
 	std::string tls_ciphersuite_list;
 	std::string gui_version;
 	std::string sso_methods;
-	bool allow_local_lan_access;
+	bool allow_local_lan_access = false;
 	std::string hw_addr_override;
 	std::string platform_version;
 	ProtoContextOptions::Ptr proto_context_options;
@@ -689,6 +690,10 @@ namespace openvpn {
 	state->private_key_password = config.privateKeyPassword;
 	if (!config.protoOverride.empty())
 	  state->proto_override = Protocol::parse(config.protoOverride, Protocol::NO_SUFFIX);
+	if (config.protoVersionOverride == 4)
+	  state->proto_version_override = IP::Addr::Version::V4;
+	else if (config.protoVersionOverride == 6)
+	  state->proto_version_override = IP::Addr::Version::V6;
 	if (!config.ipv6.empty())
 	  state->ipv6 = IPv6Setting::parse(config.ipv6);
 	if (!config.compressionMode.empty())
@@ -805,6 +810,8 @@ namespace openvpn {
 	ClientCreds::Ptr cc = new ClientCreds();
 	cc->set_username(creds.username);
 	cc->set_password(creds.password);
+	cc->set_http_proxy_username(creds.http_proxy_user);
+	cc->set_http_proxy_password(creds.http_proxy_pass);
 	cc->set_response(creds.response);
 	cc->set_dynamic_challenge_cookie(creds.dynamicChallengeCookie, creds.username);
 	cc->set_replace_password_with_session_id(creds.replacePasswordWithSessionID);
@@ -960,6 +967,7 @@ namespace openvpn {
       cc.server_override = state->server_override;
       cc.port_override = state->port_override;
       cc.proto_override = state->proto_override;
+      cc.proto_version_override = state->proto_version_override;
       cc.ipv6 = state->ipv6;
       cc.conn_timeout = state->conn_timeout;
       cc.tun_persist = state->tun_persist;

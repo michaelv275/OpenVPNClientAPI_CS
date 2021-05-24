@@ -160,6 +160,16 @@ namespace openvpn {
 	return IP::Addr::from_asio(server_endpoint.address());
       }
 
+      unsigned short server_endpoint_port() const override
+      {
+	return server_endpoint.port();
+      }
+
+      int native_handle() override
+      {
+	return socket.native_handle();
+      }
+
       Protocol transport_protocol() const override
       {
 	return server_protocol;
@@ -253,7 +263,7 @@ namespace openvpn {
 
       // do DNS resolve
       void resolve_callback(const openvpn_io::error_code& error,
-			    openvpn_io::ip::tcp::resolver::results_type results) override
+			    results_type results) override
       {
 	if (!halt)
 	  {

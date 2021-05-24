@@ -1,9 +1,3 @@
-cmake_minimum_required(VERSION 3.5)
-
-project(tests)
-set(CMAKE_CXX_STANDARD 14)
-
-include(findcoredeps)
 include(dlgoogletest)
 
 # Extra includes/libraries that are currently only use by the core unit test
@@ -37,6 +31,9 @@ add_executable(coreUnitTests
         test_ssl.cpp
         test_continuation.cpp
         test_optfilt.cpp
+        test_remotelist.cpp
+        test_http_proxy.cpp
+        test_peer_fingerprint.cpp
         )
 
 if (${USE_MBEDTLS})

@@ -117,7 +117,10 @@ namespace openvpn {
       std::string server_port;
       Protocol transport_protocol;
 
-      // IP address list defined after server_host is resolved
+      // Non-empty if --remote-random-hostname is active.
+      std::string random_host;
+
+      // IP address list defined after actual_host() is resolved
       ResolvedAddrList::Ptr res_addr_list;
 
       // Other options if this is a <connection> block
@@ -126,6 +129,11 @@ namespace openvpn {
       bool res_addr_list_defined() const
       {
 	return res_addr_list && res_addr_list->size() > 0;
+      }
+
+      std::string actual_host() const
+      {
+	return random_host.empty() ? server_host : random_host;
       }
 
       // cache a single IP address
@@ -145,6 +153,10 @@ namespace openvpn {
 	res_addr_list.reset(new ResolvedAddrList());
 	for (const auto &i : endpoint_range)
 	  {
+	    // Skip addresses with incompatible family
+	    if ((transport_protocol.is_ipv6() && i.endpoint().address().is_v4())
+	        || (transport_protocol.is_ipv4() && i.endpoint().address().is_v6()))
+	      continue;
 	    ResolvedAddr::Ptr addr(new ResolvedAddr());
 	    addr->addr = IP::Addr::from_asio(i.endpoint().address());
 	    res_addr_list->push_back(addr);
@@ -172,7 +184,7 @@ namespace openvpn {
       std::string to_string() const
       {
 	std::ostringstream out;
-	out << "host=" << server_host;
+	out << "host=" << actual_host();
 	if (res_addr_list)
 	  out << '[' << res_addr_list->to_string() << ']';
 	out << " port=" << server_port
@@ -190,41 +202,27 @@ namespace openvpn {
     // Directive names that we search for in options
     struct Directives
     {
-      void init(const std::string& connection_tag)
-      {
-	connection = connection_tag.length() ? connection_tag : "connection";
-	remote = "remote";
-	proto = "proto";
-	port = "port";
-      }
+      explicit Directives(const std::string& conn_tag = "")
+	: connection(conn_tag.length() ? conn_tag : "connection")
+      {}
 
-      std::string connection;
-      std::string remote;
-      std::string proto;
-      std::string port;
+      const std::string connection;
+      const std::string remote = "remote";
+      const std::string proto = "proto";
+      const std::string port = "port";
     };
 
     // Used to index into remote list.
     // The primary index is the remote list index.
     // The secondary index is the index into the
     // Item's IP address list (res_addr_list).
-    class Index
+    struct Index
     {
-    public:
-      Index()
-      {
-	reset();
-      }
+      void reset() { primary_ = secondary_ = 0; }
+      void reset_secondary() { secondary_ = 0; }
 
-      void reset()
-      {
-	primary_ = secondary_ = 0;
-      }
-
-      void reset_secondary()
-      {
-	secondary_ = 0;
-      }
+      size_t primary() const { return primary_; }
+      size_t secondary() const { return secondary_; }
 
       // return true if primary index was incremented
       bool increment(const size_t pri_len, const size_t sec_len)
@@ -240,17 +238,9 @@ namespace openvpn {
 	  return false;
       }
 
-      bool equals(const Index& other) const
-      {
-	return primary_ == other.primary_ && secondary_ == other.secondary_;
-      }
-
-      size_t primary() const { return primary_; }
-      size_t secondary() const { return secondary_; }
-
     private:
-      size_t primary_;
-      size_t secondary_;
+      size_t primary_ = 0;
+      size_t secondary_ = 0;
     };
 
   public:
@@ -265,7 +255,7 @@ namespace openvpn {
     // This is useful in tun_persist mode, where it may be necessary
     // to pre-resolve all potential remote server items prior
     // to initial tunnel establishment.
-    class PreResolve : public virtual RC<thread_unsafe_refcount>, AsyncResolvableTCP
+    class PreResolve : public virtual RC<thread_unsafe_refcount>, protected AsyncResolvableTCP
     {
     public:
       typedef RCPtr<PreResolve> Ptr;
@@ -319,7 +309,7 @@ namespace openvpn {
 	async_resolve_cancel();
       }
 
-    private:
+    protected:
       void next()
       {
 	while (index < remote_list->list.size())
@@ -330,19 +320,10 @@ namespace openvpn {
 	    if (!item.res_addr_list_defined())
 	      {
 		// next item to resolve
-		const Item* sitem = remote_list->search_server_host(item.server_host);
-		if (sitem)
-		  {
-		    // item's server_host matches one previously resolved -- use it
-		    OPENVPN_LOG_REMOTELIST("*** PreResolve USED CACHE for " << item.server_host);
-		    item.res_addr_list = sitem->res_addr_list;
-		  }
-		else
-		  {
-		    OPENVPN_LOG_REMOTELIST("*** PreResolve RESOLVE on " << item.server_host << " : " << item.server_port);
-		    async_resolve_name(item.server_host, item.server_port);
-		    return;
-		  }
+		const std::string& host = item.actual_host();
+		OPENVPN_LOG_REMOTELIST("*** PreResolve RESOLVE on " << host << " : " << item.server_port);
+		async_resolve_name(host, item.server_port);
+		return;
 	      }
 	    ++index;
 	  }
@@ -362,20 +343,31 @@ namespace openvpn {
 
       // callback on resolve completion
       void resolve_callback(const openvpn_io::error_code& error,
-			    openvpn_io::ip::tcp::resolver::results_type results) override
+			    results_type results) override
       {
 	if (notify_callback && index < remote_list->list.size())
 	  {
-	    Item& item = *remote_list->list[index++];
+	    const auto resolve_item(remote_list->list[index++]);
 	    if (!error)
 	      {
-		// resolve succeeded
-		item.set_endpoint_range(results, remote_list->rng.get());
+		// Set results to Items, where applicable
+		auto rand = remote_list->random ? remote_list->rng.get() : nullptr;
+		for (auto& item : remote_list->list)
+		  {
+		    // Skip already resolved items and items with different hostname
+		    if (item->res_addr_list_defined()
+		        || item->server_host != resolve_item->server_host)
+		      continue;
+
+		    item->set_endpoint_range(results, rand);
+		    item->random_host = resolve_item->random_host;
+		  }
 	      }
 	    else
 	      {
 		// resolve failed
-		OPENVPN_LOG("DNS pre-resolve error on " << item.server_host << ": " << error.message());
+		OPENVPN_LOG("DNS pre-resolve error on " << resolve_item->actual_host()
+			    << ": " << error.message());
 		if (stats)
 		  stats->error(Error::RESOLVE_ERROR);
 	      }
@@ -389,17 +381,10 @@ namespace openvpn {
       size_t index;
     };
 
-    // create an empty remote list
-    RemoteList()
-    {
-      init("");
-    }
-
     // create a remote list with a RemoteOverride callback
     RemoteList(RemoteOverride* remote_override_arg)
       : remote_override(remote_override_arg)
     {
-      init("");
       next();
     }
 
@@ -409,8 +394,6 @@ namespace openvpn {
 	       const Protocol& transport_protocol,
 	       const std::string& title)
     {
-      init("");
-
       HostPort::validate_port(server_port, title);
 
       Item::Ptr item(new Item());
@@ -432,13 +415,15 @@ namespace openvpn {
     RemoteList(const OptionList& opt,
 	       const std::string& connection_tag,
 	       const unsigned int flags,
-	       ConnBlockFactory* conn_block_factory)
+	       ConnBlockFactory* conn_block_factory,
+	       RandomAPI::Ptr rng_arg = RandomAPI::Ptr())
+      : random_hostname(opt.exists("remote-random-hostname"))
+      , directives(connection_tag)
+      , rng(rng_arg)
     {
-      init(connection_tag);
-
       // defaults
-      Protocol default_proto(Protocol::UDPv4);
-      std::string default_port = "1194";
+      const Protocol default_proto = get_proto(opt, Protocol(Protocol::UDPv4));
+      const std::string default_port = get_port(opt, "1194");
 
       // handle remote, port, and proto at the top-level
       if (!(flags & CONN_BLOCK_ONLY))
@@ -463,8 +448,8 @@ namespace openvpn {
 					    ProfileParseLimits::MAX_LINE_SIZE,
 					    ProfileParseLimits::MAX_DIRECTIVE_SIZE);
 		  OptionList::Ptr conn_block = OptionList::parse_from_config_static_ptr(conn_block_text, &limits);
-		  Protocol proto(default_proto);
-		  std::string port(default_port);
+		  const Protocol block_proto = get_proto(*conn_block, default_proto);
+		  const std::string block_port = get_port(*conn_block, default_port);
 
 		  // unsupported options
 		  if (flags & WARN_UNSUPPORTED)
@@ -480,7 +465,7 @@ namespace openvpn {
 		    if (conn_block_factory)
 		      cb = conn_block_factory->new_conn_block(conn_block);
 		    if (!(flags & CONN_BLOCK_OMIT_UNDEF) || cb)
-		      add(*conn_block, proto, port, cb);
+		      add(*conn_block, block_proto, block_port, cb);
 		  }
 		}
 		catch (Exception& e)
@@ -495,8 +480,6 @@ namespace openvpn {
 
       if (!(flags & ALLOW_EMPTY) && list.empty())
 	throw option_error("remote option not specified");
-
-      //OPENVPN_LOG(to_string());
     }
 
     // if cache is enabled, all DNS names will be preemptively queried
@@ -518,8 +501,10 @@ namespace openvpn {
       for (auto &item : list)
 	{
 	  item->server_host = server_override;
+	  item->random_host.clear();
 	  item->res_addr_list.reset();
 	}
+      random_hostname = false;
       reset_cache();
     }
 
@@ -536,6 +521,16 @@ namespace openvpn {
       reset_cache();
     }
 
+    // override all Item's transport_protocol version to v
+    void set_proto_version_override(const IP::Addr::Version v)
+    {
+      if (v == IP::Addr::Version::UNSPEC)
+	return;
+      for (auto item : list)
+	item->transport_protocol.mod_addr_version(v);
+      reset_cache();
+    }
+
     void set_random(const RandomAPI::Ptr& rng_arg)
     {
       rng = rng_arg;
@@ -546,20 +541,10 @@ namespace openvpn {
     {
       if (rng)
 	{
+	  random = true;
 	  std::shuffle(list.begin(), list.end(), *rng);
 	  index.reset();
 	}
-    }
-
-    // return true if at least one remote entry is of type proto
-    bool contains_protocol(const Protocol& proto)
-    {
-      for (std::vector<Item::Ptr>::const_iterator i = list.begin(); i != list.end(); ++i)
-	{
-	  if (proto.transport_match((*i)->transport_protocol))
-	    return true;
-	}
-      return false;
     }
 
     // Higher-level version of set_proto_override that also supports indication
@@ -606,7 +591,7 @@ namespace openvpn {
     {
       const Item& item = *list[primary_index()];
       if (server_host)
-	*server_host = item.server_host;
+	*server_host = item.actual_host();
       if (server_port)
 	*server_port = item.server_port;
       const bool cached = (item.res_addr_list && index.secondary() < item.res_addr_list->size());
@@ -617,7 +602,8 @@ namespace openvpn {
 	      // Since we know whether resolved address is IPv4 or IPv6, add
 	      // that info to the returned Protocol object.
 	      Protocol proto(item.transport_protocol);
-	      proto.mod_addr_version((*item.res_addr_list)[index.secondary()]->addr);
+	      const IP::Addr& addr = (*item.res_addr_list)[index.secondary()]->addr;
+	      proto.mod_addr_version(addr.version());
 	      *transport_protocol = proto;
 	    }
 	  else
@@ -631,7 +617,8 @@ namespace openvpn {
     void set_endpoint_range(EPRANGE& endpoint_range)
     {
       Item& item = *list[primary_index()];
-      item.set_endpoint_range(endpoint_range, rng.get());
+      auto rand = random ? rng.get() : nullptr;
+      item.set_endpoint_range(endpoint_range, rand);
       index.reset_secondary();
     }
 
@@ -656,10 +643,10 @@ namespace openvpn {
     }
 
     // return hostname (or IP address) of current connection entry
-    const std::string& current_server_host() const
+    std::string current_server_host() const
     {
       const Item& item = *list[primary_index()];
-      return item.server_host;
+      return item.actual_host();
     }
 
     // return transport protocol of current connection entry
@@ -670,24 +657,10 @@ namespace openvpn {
     }
 
     template <typename T>
-    typename T::Ptr current_conn_block() const
-    {
-      const Item& item = *list[primary_index()];
-      return item.conn_block.template dynamic_pointer_cast<T>();
-    }
-
-    template <typename T>
     T* current_conn_block_rawptr() const
     {
       const Item& item = *list[primary_index()];
       return dynamic_cast<T*>(item.conn_block.get());
-    }
-
-    // return hostname (or IP address) of first connection entry
-    std::string first_server_host() const
-    {
-      const Item& item = *list.at(0);
-      return item.server_host;
     }
 
     const Item* first_item() const
@@ -731,7 +704,10 @@ namespace openvpn {
     void reset_cache()
     {
       for (auto &e : list)
-	e->res_addr_list.reset(nullptr);
+	{
+	  e->res_addr_list.reset(nullptr);
+	  randomize_host(*e);
+	}
       index.reset();
     }
 
@@ -743,18 +719,14 @@ namespace openvpn {
     }
 
   private:
-    // initialization, called by constructors
-    void init(const std::string& connection_tag)
-    {
-      enable_cache = false;
-      directives.init(connection_tag);
-    }
-
     // reset the cache associated with a given item
     void reset_item(const size_t i)
     {
-      if (i <= list.size())
-	list[i]->res_addr_list.reset(nullptr);
+      if (i < list.size())
+	{
+	  list[i]->res_addr_list.reset(nullptr);
+	  randomize_host(*list[i]);
+	}
     }
 
     // return the current primary index (into list) and raise an exception
@@ -780,16 +752,15 @@ namespace openvpn {
       return 0;
     }
 
-    // Search for cached Item by server_host
-    Item* search_server_host(const std::string& server_host)
+    // return true if at least one remote entry is of type proto
+    bool contains_protocol(const Protocol& proto)
     {
-      for (std::vector<Item::Ptr>::iterator i = list.begin(); i != list.end(); ++i)
+      for (std::vector<Item::Ptr>::const_iterator i = list.begin(); i != list.end(); ++i)
 	{
-	  Item* item = i->get();
-	  if (server_host == item->server_host && item->res_addr_list_defined())
-	    return item;
+	  if (proto.transport_match((*i)->transport_protocol))
+	    return true;
 	}
-      return nullptr;
+      return false;
     }
 
     // prune remote entries so that only those of Protocol proto_override remain
@@ -846,61 +817,65 @@ namespace openvpn {
       index.reset();
     }
 
-    void add(const OptionList& opt, Protocol& default_proto, std::string& default_port, ConnBlock::Ptr conn_block)
+    std::string get_port(const OptionList& opt, const std::string& default_port)
+    {
+      // parse "port" option if present
+      const Option* o = opt.get_ptr(directives.port);
+      if (!o)
+        return default_port;
+
+      std::string port = o->get(1, 16);
+      HostPort::validate_port(port, directives.port);
+      return port;
+    }
+
+    Protocol get_proto(const OptionList& opt, const Protocol& default_proto)
     {
       // parse "proto" option if present
-      {
-	const Option* o = opt.get_ptr(directives.proto);
-	if (o)
-	  default_proto = Protocol::parse(o->get(1, 16), Protocol::CLIENT_SUFFIX);
-      }
+      const Option* o = opt.get_ptr(directives.proto);
+      if (o)
+        return Protocol::parse(o->get(1, 16), Protocol::CLIENT_SUFFIX);
 
-      // parse "port" option if present
-      {
-	const Option* o = opt.get_ptr(directives.port);
-	if (o)
-	  {
-	    default_port = o->get(1, 16);
-	    HostPort::validate_port(default_port, directives.port);
-	  }
-      }
+      return default_proto;
+    }
+
+    void add(const OptionList& opt, const Protocol& default_proto, const std::string& default_port, ConnBlock::Ptr conn_block)
+    {
+      const OptionList::IndexList* rem = opt.get_index_ptr(directives.remote);
+      if (!rem)
+        return;
 
       // cycle through remote entries
-      {
-	const OptionList::IndexList* rem = opt.get_index_ptr(directives.remote);
-	if (rem)
-	  {
-	    for (OptionList::IndexList::const_iterator i = rem->begin(); i != rem->end(); ++i)
-	      {
-		Item::Ptr e(new Item());
-		const Option& o = opt[*i];
-		o.touch();
-		e->server_host = o.get(1, 256);
-		int adj = 0;
-		if (o.size() >= 3)
-		  {
-		    e->server_port = o.get(2, 16);
-		    if (Protocol::is_local_type(e->server_port))
-		      {
-			adj = -1;
-			e->server_port = "";
-		      }
-		    else
-		      HostPort::validate_port(e->server_port, directives.port);
-		  }
-		else
-		  e->server_port = default_port;
-		if (o.size() >= (size_t)(4+adj))
-		  e->transport_protocol = Protocol::parse(o.get(3+adj, 16), Protocol::CLIENT_SUFFIX);
-		else
-		  e->transport_protocol = default_proto;
-		e->conn_block = conn_block;
-		if (conn_block)
-		  conn_block->new_item(*e);
-		list.push_back(e);
-	      }
-	  }
-      }
+      for (const auto& i : *rem)
+        {
+          Item::Ptr e(new Item());
+          const Option& o = opt[i];
+          o.touch();
+          e->server_host = o.get(1, 256);
+          int adj = 0;
+          if (o.size() >= 3)
+            {
+              e->server_port = o.get(2, 16);
+              if (Protocol::is_local_type(e->server_port))
+                {
+                  adj = -1;
+                  e->server_port = "";
+                }
+              else
+                HostPort::validate_port(e->server_port, directives.port);
+            }
+          else
+            e->server_port = default_port;
+          if (o.size() >= (size_t)(4+adj))
+            e->transport_protocol = Protocol::parse(o.get(3+adj, 16), Protocol::CLIENT_SUFFIX);
+          else
+            e->transport_protocol = default_proto;
+          e->conn_block = conn_block;
+          randomize_host(*e);
+          if (conn_block)
+            conn_block->new_item(*e);
+          list.push_back(e);
+        }
     }
 
     void unsupported_in_connection_block(const OptionList& options, const std::string& option)
@@ -909,7 +884,42 @@ namespace openvpn {
 	OPENVPN_LOG("NOTE: " << option << " directive is not currently supported in <connection> blocks");
     }
 
-    bool enable_cache;
+    void randomize_host(Item& item)
+    {
+      if (!random_hostname)
+	return;
+
+      try
+	{
+	  // Throws if server_host is not an IP address
+	  IP::Addr(item.server_host);
+	}
+      catch (const IP::ip_exception& e)
+	{
+	  if (!rng)
+	    throw remote_list_error("remote-random-hostname without PRNG");
+
+	  // Produce 6 bytes of random prefix data
+	  unsigned char prefix[6];
+	  rng->rand_bytes(prefix, sizeof(prefix));
+
+	  // Prepend it to the server_host
+	  std::ostringstream random_host;
+	  random_host << std::hex;
+	  for (std::size_t i = 0; i < sizeof(prefix); ++i)
+	    {
+	      random_host << std::setw(2) << std::setfill('0')
+			  << static_cast<unsigned>(prefix[i]);
+	    }
+	  random_host << "." << item.server_host;
+
+	  item.random_host = random_host.str();
+	}
+    }
+
+    bool random_hostname = false;
+    bool random = false;
+    bool enable_cache = false;
     Index index;
 
     std::vector<Item::Ptr> list;

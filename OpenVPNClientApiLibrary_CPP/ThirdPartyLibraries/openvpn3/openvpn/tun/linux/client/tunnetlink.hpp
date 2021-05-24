@@ -95,8 +95,8 @@ namespace openvpn {
       }
 
       std::string dev;
-      bool up;
-      int mtu;
+      bool up = true;
+      int mtu = 1500;
     };
 
     struct NetlinkAddr4 : public Action
@@ -163,9 +163,9 @@ namespace openvpn {
 
       std::string dev;
       IPv4::Addr addr;
-      int prefixlen;
+      int prefixlen = 0;
       IPv4::Addr broadcast;
-      bool add;
+      bool add = true;
     };
 
     struct NetlinkAddr6 : public Action
@@ -229,8 +229,8 @@ namespace openvpn {
 
       std::string dev;
       IPv6::Addr addr;
-      int prefixlen;
-      bool add;
+      int prefixlen = 0;
+      bool add = true;
     };
 
     struct NetlinkAddr4PtP : public Action
@@ -293,7 +293,7 @@ namespace openvpn {
       std::string dev;
       IPv4::Addr local;
       IPv4::Addr remote;
-      bool add;
+      bool add = true;
     };
 
     struct NetlinkRoute4 : public Action
@@ -357,7 +357,7 @@ namespace openvpn {
       IP::Route4 route;
       IPv4::Addr gw;
       std::string dev;
-      bool add;
+      bool add = true;
     };
 
     struct NetlinkRoute6 : public Action
@@ -421,7 +421,7 @@ namespace openvpn {
       IP::Route6 route;
       IPv6::Addr gw;
       std::string dev;
-      bool add;
+      bool add = true;
     };
 
     enum { // add_del_route flags
@@ -706,7 +706,7 @@ namespace openvpn {
 	}
 
 	// Process IPv4 redirect-gateway
-	if (pull.reroute_gw.ipv4)
+	if (pull.reroute_gw.ipv4 && local4)
 	  {
 	    // add bypass route
 	    if (add_bypass_routes && !pull.remote_address.ipv6 && !(pull.reroute_gw.flags & RedirectGatewayFlags::RG_LOCAL))
@@ -717,7 +717,7 @@ namespace openvpn {
 	  }
 
 	// Process IPv6 redirect-gateway
-	if (pull.reroute_gw.ipv6 && !pull.block_ipv6)
+	if (pull.reroute_gw.ipv6 && !pull.block_ipv6 && local6)
 	  {
 	    // add bypass route
 	    if (add_bypass_routes && pull.remote_address.ipv6 && !(pull.reroute_gw.flags & RedirectGatewayFlags::RG_LOCAL))

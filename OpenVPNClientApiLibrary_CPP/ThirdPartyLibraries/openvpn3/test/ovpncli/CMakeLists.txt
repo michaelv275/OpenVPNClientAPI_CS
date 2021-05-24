@@ -1,11 +1,8 @@
-cmake_minimum_required(VERSION 3.5)
-set(CMAKE_CXX_STANDARD 14)
-
-include(findcoredeps)
 
 option(CLI_NULLTUN "Build ovpncli variant with null tun" OFF)
 option(CLI_KOVPN "Build ovpncli variant with kovpn kernel moduke support" OFF)
 option(CLI_OVPNDCO "Build ovpncli variant with ovpn-dco kernel module support" OFF)
+option(CLI_OVPNDCOWIN "Build ovpncli variant with ovpn-dco-win windows driver" OFF)
 
 set(KOVPN_SOURCE "${CORE_DIR}/../kovpn" CACHE PATH "ovpn-dco kernel module source tree")
 set(OVPN_DCO_SOURCE "${CORE_DIR}/../ovpn-dco" CACHE PATH "ovpn-dco kernel module source tree")
@@ -49,5 +46,18 @@ if (WIN32)
     add_executable(ovpncliagent cli.cpp)
     add_core_dependencies(ovpncliagent)
     add_json_library(ovpncliagent)
-    target_compile_definitions(ovpncliagent PRIVATE -DOPENVPN_COMMAND_AGENT -DOVPNAGENT_DISABLE_PATH_CHECK)
+    target_compile_definitions(ovpncliagent PRIVATE OPENVPN_COMMAND_AGENT
+                                                    OVPNAGENT_DISABLE_PATH_CHECK)
+
+    if (${CLI_OVPNDCOWIN})
+        find_path(OVPN_DCO_WIN_INCLUDE_DIRS "ovpn-dco-win/uapi.h")
+
+        target_compile_definitions(ovpncliagent PRIVATE ENABLE_OVPNDCOWIN)
+        target_include_directories(ovpncliagent PRIVATE ${OVPN_DCO_WIN_INCLUDE_DIRS})
+
+        add_executable(ovpncliovpndcowin cli.cpp)
+        add_core_dependencies(ovpncliovpndcowin)
+        target_compile_definitions(ovpncliovpndcowin PRIVATE ENABLE_OVPNDCOWIN)
+        target_include_directories(ovpncliovpndcowin PRIVATE ${OVPN_DCO_WIN_INCLUDE_DIRS})
+    endif()
 endif ()

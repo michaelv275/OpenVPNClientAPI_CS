@@ -59,6 +59,7 @@
 #include <openvpn/ssl/tlsver.hpp>
 #include <openvpn/ssl/tls_remote.hpp>
 #include <openvpn/ssl/verify_x509_name.hpp>
+#include <openvpn/ssl/peer_fingerprint.hpp>
 #include <openvpn/ssl/sslconsts.hpp>
 #include <openvpn/ssl/sslapi.hpp>
 #include <openvpn/ssl/ssllog.hpp>
@@ -430,6 +431,11 @@ namespace openvpn {
 	// parse verify-x509-name
 	verify_x509_name.init(opt, relay_prefix);
 
+	// parse peer-fingerprint
+	peer_fingerprints = PeerFingerprints(opt, OpenSSLPKI::x509_fingerprint_size());
+	if (peer_fingerprints)
+	  flags |= SSLConst::VERIFY_PEER_FINGERPRINT; // make CA optional
+
 	// Parse tls-version-min option.
 	tls_version_min = TLSVersion::parse_tls_version_min(opt, relay_prefix, maxver());
 
@@ -586,7 +592,8 @@ namespace openvpn {
       std::string eku;              // if defined, peer cert X509 extended key usage must match this OID/string
       std::string tls_remote;
       VerifyX509Name verify_x509_name;   // --verify-x509-name feature
-      TLSVersion::Type tls_version_min{TLSVersion::UNDEF}; // minimum TLS version that we will negotiate
+      PeerFingerprints peer_fingerprints; // --peer-fingerprint
+      TLSVersion::Type tls_version_min{TLSVersion::V1_2}; // minimum TLS version that we will negotiate
       TLSCertProfile::Type tls_cert_profile{TLSCertProfile::UNDEF};
       std::string tls_cipher_list;
       std::string tls_ciphersuite_list;
@@ -896,7 +903,7 @@ namespace openvpn {
 		if ((EVP_PKEY_id(pkey) == EVP_PKEY_EC) && (EVP_PKEY_get0_EC_KEY(pkey) != nullptr &&
 		  EVP_PKEY_get0_EC_KEY(pkey) != nullptr))
 		  {
-		    EC_KEY* ec = EVP_PKEY_get0_EC_KEY(pkey);
+		    const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(pkey);
 		    const EC_GROUP* group = EC_KEY_get0_group(ec);
 		    const char* curve = nullptr;
 
@@ -1144,6 +1151,10 @@ namespace openvpn {
 	  /* Disable SSLv2 and SSLv3, might be a noop but does not hurt */
 	  long sslopt = SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE | SSL_OP_NO_COMPRESSION | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
 
+#ifdef SSL_OP_NO_RENEGOTIATION
+	  sslopt |= SSL_OP_NO_RENEGOTIATION;
+#endif
+
 	  if (config->mode.is_server())
 	    {
 	      SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
@@ -1338,7 +1349,7 @@ namespace openvpn {
 	  // Set CAs/CRLs
 	  if (config->ca.certs.defined())
 	    update_trust(config->ca);
-	  else if (!(config->flags & SSLConst::NO_VERIFY_PEER))
+	  else if (!(config->flags & (SSLConst::NO_VERIFY_PEER | SSLConst::VERIFY_PEER_FINGERPRINT)))
 	    OPENVPN_THROW(ssl_context_error, "OpenSSLContext: CA not defined");
 
 	  // Show handshake debugging info
@@ -1689,10 +1700,17 @@ namespace openvpn {
 
       // log subject
       const std::string subject = OpenSSLPKI::x509_get_subject(current_cert);
-      auto signature = OpenSSLPKI::x509_get_signature_algorithm(current_cert);
       if (self->config->flags & SSLConst::LOG_VERIFY_STATUS)
-	OPENVPN_LOG_SSL(cert_status_line(preverify_ok, depth, X509_STORE_CTX_get_error(ctx),
-				 signature, subject));
+	{
+	  // don't log self-signed leaf-cert errors with peer-fingerprint validation
+	  int err = X509_STORE_CTX_get_error(ctx);
+	  if (preverify_ok || err != X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT ||
+	      !(self->config->flags & SSLConst::VERIFY_PEER_FINGERPRINT))
+	    {
+	      auto sign_alg = OpenSSLPKI::x509_get_signature_algorithm(current_cert);
+	      OPENVPN_LOG_SSL(cert_status_line(preverify_ok, depth, err, sign_alg, subject));
+	    }
+	}
 
       // Add warnings if Cert parameters are wrong
       self_ssl->tls_warnings |= self->check_cert_warnings(current_cert);
@@ -1700,6 +1718,15 @@ namespace openvpn {
       // leaf-cert verification
       if (depth == 0)
 	{
+	  // peer-fingerprint
+	  PeerFingerprint fp(OpenSSLPKI::x509_get_fingerprint(current_cert));
+	  if (self->config->peer_fingerprints)
+	    {
+	      preverify_ok = self->config->peer_fingerprints.match(fp);
+	      if (!preverify_ok)
+		OPENVPN_LOG_SSL("VERIFY FAIL -- bad peer-fingerprint in leaf certificate");
+	    }
+
 	  // verify ns-cert-type
 	  if (self->ns_cert_type_defined() && !self->verify_ns_cert_type(current_cert))
 	    {
@@ -1725,23 +1752,16 @@ namespace openvpn {
 	  const VerifyX509Name& verify_x509 = self->config->verify_x509_name;
 	  if (verify_x509.get_mode() != VerifyX509Name::VERIFY_X509_NONE)
 	  {
-	    switch (verify_x509.get_mode())
-	    {
-	      case VerifyX509Name::VERIFY_X509_SUBJECT_DN:
-		preverify_ok = verify_x509.verify(OpenSSLPKI::x509_get_subject(current_cert, true));
-		break;
+	    std::string name;
+	    if (verify_x509.get_mode() == VerifyX509Name::VERIFY_X509_SUBJECT_DN)
+	      name = OpenSSLPKI::x509_get_subject(current_cert, true);
+	    else
+	      name = OpenSSLPKI::x509_get_field(current_cert, NID_commonName);
 
-	      case VerifyX509Name::VERIFY_X509_SUBJECT_RDN:
-	      case VerifyX509Name::VERIFY_X509_SUBJECT_RDN_PREFIX:
-		preverify_ok = verify_x509.verify(OpenSSLPKI::x509_get_field(current_cert, NID_commonName));
-		break;
-
-	      default:
-		break;
-	    }
-	    if (!preverify_ok)
+	    if (!verify_x509.verify(name))
 	    {
 	      OPENVPN_LOG_SSL("VERIFY FAIL -- verify-x509-name failed");
+	      preverify_ok = false;
 	    }
 	  }
 
@@ -1784,9 +1804,17 @@ namespace openvpn {
 
       // log subject
       if (self->config->flags & SSLConst::LOG_VERIFY_STATUS)
-	OPENVPN_LOG_SSL(cert_status_line(preverify_ok, depth, err,
-				  OpenSSLPKI::x509_get_subject(current_cert),
-				  OpenSSLPKI::x509_get_signature_algorithm(current_cert)));
+	{
+	  // don't log self-signed leaf-cert errors with peer-fingerprint validation
+	  int err = X509_STORE_CTX_get_error(ctx);
+	  if (preverify_ok || err != X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT ||
+	      !(self->config->flags & SSLConst::VERIFY_PEER_FINGERPRINT))
+	    {
+	      const auto sign_alg = OpenSSLPKI::x509_get_signature_algorithm(current_cert);
+	      const auto subject = OpenSSLPKI::x509_get_subject(current_cert);
+	      OPENVPN_LOG_SSL(cert_status_line(preverify_ok, depth, err, sign_alg, subject));
+	    }
+	}
 
       // record cert error in authcert
       if (!preverify_ok && self_ssl->authcert)
@@ -1805,6 +1833,16 @@ namespace openvpn {
 	}
       else if (depth == 0) // leaf cert
 	{
+	  // peer-fingerprint
+	  PeerFingerprint fp(OpenSSLPKI::x509_get_fingerprint(current_cert));
+	  if (self->config->peer_fingerprints && !self->config->peer_fingerprints.match(fp))
+	    {
+	      OPENVPN_LOG_SSL("VERIFY FAIL -- bad peer-fingerprint in leaf certificate");
+	      if (self_ssl->authcert)
+		self_ssl->authcert->add_fail(depth, AuthCert::Fail::BAD_CERT_TYPE, "bad peer-fingerprint in leaf certificate");
+	      preverify_ok = false;
+	    }
+
 	  // verify ns-cert-type
 	  if (self->ns_cert_type_defined() && !self->verify_ns_cert_type(current_cert))
 	    {

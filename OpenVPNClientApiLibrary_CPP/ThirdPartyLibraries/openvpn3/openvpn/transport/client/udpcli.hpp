@@ -100,7 +100,7 @@ namespace openvpn {
 		if (config->synchronous_dns_lookup)
 		  {
 		    openvpn_io::error_code error;
-		    openvpn_io::ip::udp::resolver::results_type results = resolver.resolve(server_host, server_port, error);
+		    results_type results = resolver.resolve(server_host, server_port, error);
 		    resolve_callback(error, results);
 		  }
 		else
@@ -157,6 +157,16 @@ namespace openvpn {
       IP::Addr server_endpoint_addr() const override
       {
 	return IP::Addr::from_asio(server_endpoint.address());
+      }
+
+      unsigned short server_endpoint_port() const override
+      {
+	return server_endpoint.port();
+      }
+
+      int native_handle() override
+      {
+	return socket.native_handle();
       }
 
       Protocol transport_protocol() const override
@@ -238,7 +248,7 @@ namespace openvpn {
 
       // called after DNS resolution has succeeded or failed
       void resolve_callback(const openvpn_io::error_code& error,
-			    openvpn_io::ip::udp::resolver::results_type results) override
+			    results_type results) override
       {
 	if (!halt)
 	  {

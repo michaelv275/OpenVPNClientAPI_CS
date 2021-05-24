@@ -103,6 +103,9 @@ namespace openvpn {
       std::string username;
       std::string password;
 
+      std::string http_proxy_user;
+      std::string http_proxy_pass;
+
       // response to challenge
       std::string response;
 
@@ -197,6 +200,10 @@ namespace openvpn {
       // Force a given transport protocol
       // Should be tcp, udp, or adaptive.
       std::string protoOverride;
+
+      // Force transport protocol IP version
+      // Should be 4 for IPv4 or 6 for IPv6.
+      int protoVersionOverride = 0;
 
       // IPv6 preference
       //  no      -- disable IPv6, so tunnel will be IPv4-only

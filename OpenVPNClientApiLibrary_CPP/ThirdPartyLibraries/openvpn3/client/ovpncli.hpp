@@ -504,6 +504,8 @@ namespace openvpn {
       // The remote and ipv6 are the remote host this socket will connect to
       virtual bool socket_protect(int socket, std::string remote, bool ipv6);
 
+      void listenToRoutingTable();
+
       // Primary VPN client connect method, doesn't return until disconnect.
       // Should be called by a worker thread.  This method will make callbacks
       // to event() and log() functions.  Make sure to call eval_config()

@@ -831,6 +831,33 @@ namespace openvpn {
       return true;
     }
 
+	OPENVPN_CLIENT_EXPORT void OpenVPNClient::listenToRoutingTable()
+	{
+		OVERLAPPED overlap;
+		DWORD ret;
+
+		HANDLE hand = NULL;
+		overlap.hEvent = WSACreateEvent();
+
+		ret = NotifyRouteChange(&hand, &overlap);
+
+		if (ret != NO_ERROR)
+		{
+			if (WSAGetLastError() != WSA_IO_PENDING)
+			{
+				OPENVPN_LOG("NotifyRouteChange error...%d", WSAGetLastError());
+				return;
+			}
+		}
+
+		if (WaitForSingleObject(overlap.hEvent, INFINITE) == WAIT_OBJECT_0)
+		{
+			//TODO create a RoutingTableError object that can tell what routes were added/removed
+			ClientEvent::Base::Ptr ev = new ClientEvent::RouteTableError("ROUTES CHANGED: Routing table changed...");
+			state->events->add_event(ev);
+		}
+	}
+
     OPENVPN_CLIENT_EXPORT bool OpenVPNClient::parse_dynamic_challenge(const std::string& cookie, DynamicChallenge& dc)
     {
       try {
@@ -1117,6 +1144,7 @@ namespace openvpn {
 
     OPENVPN_CLIENT_EXPORT void OpenVPNClient::connect_pre_run()
     {
+		OPENVPN_LOG("pre_run steps ");
     }
 
     OPENVPN_CLIENT_EXPORT void OpenVPNClient::connect_run()

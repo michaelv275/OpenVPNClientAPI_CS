@@ -44,6 +44,11 @@
             Default is to log the message to the console.
             </summary>
         </member>
+        <member name="E:OpenVpnClientApi_CS.Client.SecurityEventReceived">
+            <summary>
+            Event handler for security events such as the route table being altered after vpn connection
+            </summary>
+        </member>
         <member name="M:OpenVpnClientApi_CS.Client.#ctor">
             <summary>
             creates a new Client object and initializes the C++ implementation Object, a new OpenVPNClientThread object
@@ -75,6 +80,11 @@
             Use the OpenVPNClientThread object to start a connection.
             
             If another connection is active, end it. Once that connection is ended, start the new one.
+            </summary>
+        </member>
+        <member name="M:OpenVpnClientApi_CS.Client.ListenForRoutingTableChange">
+            <summary>
+            Listens to the routing table for changes. If a change is detected, it will be outout as a new event
             </summary>
         </member>
         <member name="M:OpenVpnClientApi_CS.Client.Stop">

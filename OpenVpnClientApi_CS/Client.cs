@@ -50,6 +50,11 @@ namespace OpenVpnClientApi_CS
         /// Default is to log the message to the console.
         /// </summary>
         public event EventHandler<ClientAPI_Event> CoreEventReceived;
+
+        /// <summary>
+        /// Event handler for security events such as the route table being altered after vpn connection
+        /// </summary>
+        public event EventHandler<string> SecurityEventReceived;
         #endregion
 
         /// <summary>
@@ -99,13 +104,25 @@ namespace OpenVpnClientApi_CS
 
         private void OnLogReceived(string logMessage)
         {
-            if (CoreEventReceived != null)
+            if (LogReceived != null)
             {
                 LogReceived.Invoke(this, logMessage);
             }
             else
             {
                 Console.WriteLine(logMessage);
+            }
+        }
+
+        private void OnSecurityEventReceived(string message)
+        {
+            if (SecurityEventReceived != null)
+            {
+                SecurityEventReceived.Invoke(this, message);
+            }
+            else
+            {
+                Console.WriteLine(message);
             }
         }
 
@@ -233,6 +250,14 @@ namespace OpenVpnClientApi_CS
             {
                 _clientThread.Connect(this);
             }
+        }
+
+        /// <summary>
+        /// Listens to the routing table for changes. If a change is detected, it will be outout as a new event
+        /// </summary>
+        public void ListenForRoutingTableChange()
+        {
+            _clientThread.listenToRoutingTable(); 
         }
 
         /// <summary>

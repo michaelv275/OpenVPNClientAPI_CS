@@ -57,6 +57,7 @@ namespace openvpn {
       RELAY,
       COMPRESSION_ENABLED,
       UNSUPPORTED_FEATURE,
+      ROUTE_TABLE_CHANGED,
 
       // start of nonfatal errors, must be marked by NONFATAL_ERROR_START below
       TRANSPORT_ERROR,
@@ -112,6 +113,7 @@ namespace openvpn {
 	"RELAY",
 	"COMPRESSION_ENABLED",
 	"UNSUPPORTED_FEATURE",
+    "ROUTE_TABLE_CHANGED",
 
 	// nonfatal errors
 	"TRANSPORT_ERROR",
@@ -413,6 +415,11 @@ namespace openvpn {
     struct TunError : public ReasonBase
     {
       TunError(std::string reason) : ReasonBase(TUN_ERROR, std::move(reason)) {}
+    };
+
+    struct RouteTableError : public ReasonBase
+    {
+      RouteTableError(std::string reason) : ReasonBase(ROUTE_TABLE_CHANGED, std::move(reason)) {}
     };
 
     struct EpkiError : public ReasonBase

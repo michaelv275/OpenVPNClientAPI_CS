@@ -1,18 +1,19 @@
-﻿using System;
+﻿using OpenVpnClientApi_CS;
+using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
-using OpenVpnClientApi_CS;
 
 namespace OpenVPNClientAPI_ConsoleAppTest
 {
     class SingleConnection_Example
     {
-        static readonly string _vpnConfig = "file location or config string";
-        private static readonly string _vpnCredUsername = "username";
-        private static readonly string _vpnCredPassword = "password";
+        static readonly string _vpnConfig = @"C:\AppTests\OpenVPN\VPNBook.com-OpenVPN-US1\vpnbook-us1-tcp80.ovpn";
+        private static readonly string _vpnCredUsername = "vpnbook";
+        private static readonly string _vpnCredPassword = "E2AtUn7";
 
         //Be sure to set this if your VPN server requires authentication
-        private static bool _vpnUsesCredentialAuth = false;
+        private static bool _vpnUsesCredentialAuth = true;
 
         public static Client VPNManager = new Client();
 
@@ -66,29 +67,44 @@ namespace OpenVPNClientAPI_ConsoleAppTest
             VPNManager.Show_stats();
             Console.WriteLine();
 
-            CheckForStop();
+            CheckForStopAsync();
         }
 
-        private async static void CheckForStop()
+        private async static Task CheckForStopAsync()
         {
             await Task.Run(() => 
             { 
-                bool isExiting = false;
+                bool stopReceived = false;
 
-                while (!isExiting)
+                while (!stopReceived)
                 {
-                    Console.WriteLine("Waiting for \"stop\" command");
-                    string command = Console.ReadLine().ToLower();
+                    Console.WriteLine("Enter next command:");
 
-                    switch (command)
+                    string command = Console.ReadLine();
+
+                    switch (command.ToLower())
                     {
                         case "stop":
                             VPNManager.Stop();
-                            isExiting = true;
+                            stopReceived = true;
+                            break;
+                        case "stats":
+                            VPNManager.Show_stats();
+
+                            try
+                            {
+                                VPNManager.ListenForRoutingTableChange();
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine(ex);
+                            }
                             break;
                         default:
                             break;
                     }
+
+                    Console.WriteLine();
                 }
             });
         }

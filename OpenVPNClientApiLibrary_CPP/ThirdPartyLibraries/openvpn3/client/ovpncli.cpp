@@ -428,6 +428,7 @@ namespace openvpn {
 	MyClientEvents::Ptr events;
 	ClientConnect::Ptr session;
 	std::unique_ptr<MyClockTick> clock_tick;
+	OVERLAPPED basicEventOverlap;
 
 	// extra settings submitted by API client
 	std::string server_override;
@@ -515,6 +516,7 @@ namespace openvpn {
 
 	~ClientState()
 	{
+	  CancelIPChangeNotify(&basicEventOverlap);
 	  stop_scope_local.reset();
 	  stop_scope_global.reset();
 	  socket_protect.detach_from_parent();
@@ -831,31 +833,41 @@ namespace openvpn {
       return true;
     }
 
-	OPENVPN_CLIENT_EXPORT void OpenVPNClient::listenToRoutingTable()
+	OPENVPN_CLIENT_EXPORT void OpenVPNClient::listen_To_Routing_Table()
 	{
-		OVERLAPPED overlap;
 		DWORD ret;
-
 		HANDLE hand = NULL;
-		overlap.hEvent = WSACreateEvent();
 
-		ret = NotifyRouteChange(&hand, &overlap);
-
-		if (ret != NO_ERROR)
+		state->basicEventOverlap.hEvent = WSACreateEvent();
+		
+		try
 		{
-			if (WSAGetLastError() != WSA_IO_PENDING)
+			ret = NotifyRouteChange(&hand, &state->basicEventOverlap);
+
+			if (ret != NO_ERROR)
 			{
-				OPENVPN_LOG("NotifyRouteChange error...%d", WSAGetLastError());
-				return;
+				if (WSAGetLastError() != WSA_IO_PENDING)
+				{
+					OPENVPN_LOG("NotifyRouteChange error...%d", WSAGetLastError());
+					return;
+				}
+			}
+
+			if (WaitForSingleObject(state->basicEventOverlap.hEvent, INFINITE) == WAIT_OBJECT_0)
+			{
+				ClientEvent::Base::Ptr ev = new ClientEvent::RouteTableError("Routing table changed");
+				state->events->add_event(ev);
 			}
 		}
-
-		if (WaitForSingleObject(overlap.hEvent, INFINITE) == WAIT_OBJECT_0)
+		catch (const std::exception&)
 		{
-			//TODO create a RoutingTableError object that can tell what routes were added/removed
-			ClientEvent::Base::Ptr ev = new ClientEvent::RouteTableError("ROUTES CHANGED: Routing table changed...");
-			state->events->add_event(ev);
+			return;
 		}
+	}
+
+	OPENVPN_CLIENT_EXPORT void OpenVPNClient::stop_Routing_Table_Monitoring()
+	{
+		CancelIPChangeNotify(&state->basicEventOverlap);
 	}
 
     OPENVPN_CLIENT_EXPORT bool OpenVPNClient::parse_dynamic_challenge(const std::string& cookie, DynamicChallenge& dc)

@@ -1,10 +1,4 @@
-﻿using OpenVpnClientApi_CS;
-using OpenVpnClientApi_CS.Exceptions;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
+﻿using System;
 namespace OpenVPNClientAPI_ConsoleAppTest
 {
     class Program

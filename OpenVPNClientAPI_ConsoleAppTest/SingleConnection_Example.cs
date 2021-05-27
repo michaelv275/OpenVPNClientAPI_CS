@@ -1,21 +1,21 @@
 ﻿using OpenVpnClientApi_CS;
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace OpenVPNClientAPI_ConsoleAppTest
 {
     class SingleConnection_Example
     {
-        static readonly string _vpnConfig = @"C:\AppTests\OpenVPN\VPNBook.com-OpenVPN-US1\vpnbook-us1-tcp80.ovpn";
+        static readonly string _vpnConfig = @"C:\AppTests\OpenVPN\stigConfig.ovpn";//@"C:\AppTests\OpenVPN\VPNBook.com-OpenVPN-US1\vpnbook-us1-tcp80.ovpn";
         private static readonly string _vpnCredUsername = "vpnbook";
         private static readonly string _vpnCredPassword = "E2AtUn7";
 
         //Be sure to set this if your VPN server requires authentication
         private static bool _vpnUsesCredentialAuth = true;
 
-        public static Client VPNManager = new Client();
+        public static Client VPNManager = new Client();// { ShouldRestartOnRouteTabeChange = false };
 
         /// <summary>
         /// A simple example that will start a connection using the provided config string or file.
@@ -39,6 +39,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
                 VPNManager.ConnectionClosed += VPNManager_ConnectionClosed;
                 //VPNManager.ConnectionTimedOut += Custom Connection Timeout handler
                 //VPNManager.CoreEventReceived += Custom Core Event Handler
+                //VPNManager.SecurityEventReceived += SEcurity Event handler
                 VPNManager.LogReceived += (s, e) => Console.WriteLine(String.Format("Log received event : {0}", e));
 
                 RunNewConnection(_vpnConfig);
@@ -90,15 +91,9 @@ namespace OpenVPNClientAPI_ConsoleAppTest
                             break;
                         case "stats":
                             VPNManager.Show_stats();
-
-                            try
-                            {
-                                VPNManager.ListenForRoutingTableChange();
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine(ex);
-                            }
+                            break;
+                        case "restart":
+                            VPNManager.Restart();
                             break;
                         default:
                             break;

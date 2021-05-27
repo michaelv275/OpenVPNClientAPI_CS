@@ -84,6 +84,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Client.cs" />
+    <Compile Include="Enums\SecurityEventType.cs" />
     <Compile Include="Exceptions\ConfigError.cs" />
     <Compile Include="Exceptions\ConnectionCalledTwiceException.cs" />
     <Compile Include="Exceptions\CredsUnspecifiedError.cs" />

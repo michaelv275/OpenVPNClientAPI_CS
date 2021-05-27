@@ -1,5 +1,6 @@
 ﻿using OpenVpnClientApi_CS.Exceptions;
 using OpenVpnClientApi_CS.Interfaces;
+using System;
 using System.Threading;
 
 namespace OpenVpnClientApi_CS
@@ -10,9 +11,9 @@ namespace OpenVpnClientApi_CS
     /// </summary>
     internal class OpenVPNClientThread : ClientAPI_OpenVPNClient
     {
-        private IEventReceiver _clientCaller;
-        private ITunBuilder _tunnelBuilder;
+        private Client _clientCaller;
         private Thread _clientThread;
+        private Thread _routingTableMonitoringThread;
         private ClientAPI_Status _apiConnectionStatus;
         private bool _hasConnectBeencalled = false;
 
@@ -42,11 +43,14 @@ namespace OpenVpnClientApi_CS
         }
 
         //Start connect session in worker thread
-        public void Connect(IEventReceiver parent_arg)
+        public void Connect(Client parent_arg)
         {
             if (_hasConnectBeencalled)
             {
-                throw new ConnectionCalledTwiceException();
+                string errorMessage = "Before starting another connection, the current client object must be stopped (clientObj.Stop()) ";
+                errorMessage += " Then, the object's config and credentials must be reset with the new values, then Connect() can be called";
+
+                throw new ConnectionCalledTwiceException(errorMessage);
             }
 
             _hasConnectBeencalled = true;
@@ -60,6 +64,37 @@ namespace OpenVpnClientApi_CS
             // execute client in a worker thread
             _clientThread = new Thread(new ThreadStart(Run)) { Name = "OpenVPNClientThread" };
             _clientThread.Start();
+        }
+
+        public void StartRoutingTableMonitoring()
+        {
+            _routingTableMonitoringThread = new Thread(new ThreadStart(listen_To_Routing_Table)) { Name = "RoutingTableMonitoringThread", IsBackground = true };
+            _routingTableMonitoringThread.Start();
+        }
+
+        public bool CloseMonitoringThread()
+        {
+            _clientCaller.Log("Closing monitoring thread");
+
+            bool isMonitoringStopped = true;
+
+            try
+            {
+                stop_Routing_Table_Monitoring();
+                _routingTableMonitoringThread = null;
+            }
+            catch (ThreadAbortException)
+            {
+                //expected
+                _routingTableMonitoringThread = null;
+            }
+            catch (Exception ex)
+            {
+                _clientCaller.Log(ex.Message);
+                isMonitoringStopped = false;
+            }
+
+            return isMonitoringStopped;
         }
 
         /// <summary>
@@ -128,7 +163,6 @@ namespace OpenVpnClientApi_CS
 
                 // disassociate client callbacks from parent
                 _clientCaller = null;
-                _tunnelBuilder = null;
                 _clientThread = null;
                 _hasConnectBeencalled = false;
             }
@@ -180,157 +214,6 @@ namespace OpenVpnClientApi_CS
         public override void external_pki_sign_request(ClientAPI_ExternalPKISignRequest req)
         {
             _clientCaller?.ExternalPkiSignRequest(req);
-        }
-        #endregion
-
-        #region TunBuilderBase (C++ class) overrides
-
-        public override bool tun_builder_new()
-        {
-            if (_clientCaller != null)
-            {
-                _tunnelBuilder = _clientCaller.TunBuilderNew();
-            }
-
-            return _tunnelBuilder != null;
-        }
-
-
-        public override bool tun_builder_set_remote_address(string address, bool ipv6)
-        {
-            bool isRemoteAddressSet = false;
-
-            if (_tunnelBuilder != null)
-            {
-                isRemoteAddressSet = _tunnelBuilder.TunBuilderSetRemoteAddress(address, ipv6);
-            }
-
-            return isRemoteAddressSet;
-        }
-
-
-        public override bool tun_builder_add_address(string address, int prefix_length, string gateway, bool ipv6, bool net30)
-        {
-            bool isAddressSet = false;
-
-            if (_tunnelBuilder != null)
-            {
-                isAddressSet = _tunnelBuilder.TunBuilderAddAddress(address, prefix_length, gateway, ipv6, net30);
-            }
-
-            return isAddressSet;
-        }
-
-
-        public bool tun_builder_reroute_gw(bool ipv4, bool ipv6, long flags)
-        {
-            bool isGatewayRerouted = false;
-
-            if (_tunnelBuilder != null)
-            {
-                isGatewayRerouted = _tunnelBuilder.TunBuilderRerouteGw(ipv4, ipv6, flags);
-            }
-            
-            return isGatewayRerouted;
-        }
-
-
-        public override bool tun_builder_add_route(string address, int prefix_length, int metric, bool ipv6)
-        {
-            bool isRouteAdded = false;
-
-            if (_tunnelBuilder != null)
-            {
-                return _tunnelBuilder.TunBuilderAddRoute(address, prefix_length, ipv6);
-            }
-
-            return isRouteAdded;
-        }
-
-
-        public override bool tun_builder_exclude_route(string address, int prefix_length, int metric, bool ipv6)
-        {
-            bool isRouteExcluded = false;
-
-            if (_tunnelBuilder != null)
-            {
-                isRouteExcluded = _tunnelBuilder.TunBuilderExcludeRoute(address, prefix_length, ipv6);
-            }
-            
-            return isRouteExcluded;
-        }
-
-
-        public override bool tun_builder_add_dns_server(string address, bool ipv6)
-        {
-            bool isDNSServerSet = false;
-
-            if (_tunnelBuilder != null)
-            {
-                isDNSServerSet = _tunnelBuilder.TunBuilderAddDnsServer(address, ipv6);
-            }
-            
-                return isDNSServerSet;
-        }
-
-
-        public override bool tun_builder_add_search_domain(string domain)
-        {
-            bool isSearchDomainAdded = false;
-
-            if (_tunnelBuilder != null)
-            {
-                isSearchDomainAdded = _tunnelBuilder.TunBuilderAddSearchDomain(domain);
-            }
-            
-            return isSearchDomainAdded;
-        }
-
-
-        public override bool tun_builder_set_mtu(int mtu)
-        {
-            bool isMtuSet = false;
-
-            if (_tunnelBuilder != null)
-            {
-                isMtuSet = _tunnelBuilder.TunBuilderSetMtu(mtu);
-            }
-
-            return isMtuSet;
-        }
-
-
-        public override bool tun_builder_set_session_name(string name)
-        {
-            bool isSessionNameSet = false;
-
-            if (_tunnelBuilder != null)
-            {
-                isSessionNameSet = _tunnelBuilder.TunBuilderSetSessionName(name);
-            }
-
-            return isSessionNameSet;
-        }
-
-        public override int tun_builder_establish()
-        {
-            int tunnelPort = -1;
-
-            if (_tunnelBuilder != null)
-            {
-                tunnelPort = _tunnelBuilder.TunBuilderEstablish();
-            }
-
-            return tunnelPort;
-        }
-
-
-        public override void tun_builder_teardown(bool disconnect)
-        {
-            if (_tunnelBuilder != null)
-            {
-                _tunnelBuilder.TunBuilderTeardown(disconnect);
-            }
         }
         #endregion
     }

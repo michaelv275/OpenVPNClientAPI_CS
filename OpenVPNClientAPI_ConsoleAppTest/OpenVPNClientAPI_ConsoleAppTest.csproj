@@ -73,15 +73,15 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SingleConnection_Example.cs" />
-    <Compile Include="SwitchConnections_Example.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="OpenVpnClientApi_CS">
-      <Version>1.0.0.13</Version>
-    </PackageReference>
+    <ProjectReference Include="..\OpenVpnClientApi_CS\OpenVpnClientApi_CS.csproj">
+      <Project>{cb6314a2-6afa-41b9-92d3-443706b0423f}</Project>
+      <Name>OpenVpnClientApi_CS</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

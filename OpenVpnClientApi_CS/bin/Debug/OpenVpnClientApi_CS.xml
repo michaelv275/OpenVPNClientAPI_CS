@@ -14,6 +14,13 @@
             Instead, the methods in this class will utilize the OpenVPNClientThread.cs object to interact with the underlying C++ openVPN3 library.
             </summary>
         </member>
+        <member name="P:OpenVpnClientApi_CS.Client.ShouldRestartOnRouteTabeChange">
+            <summary>
+            Determines if the OpenVPN connection will automatically restart if the routing table is changed after a connection is established.
+            This is used to enforce internet lockouts and only allow traffic to be routed to the endpoint specified in the ovpn config.
+            true by default.
+            </summary>
+        </member>
         <member name="E:OpenVpnClientApi_CS.Client.ConnectionClosed">
             <summary>
             Event handler for the ConnectionClosed event
@@ -47,6 +54,7 @@
         <member name="E:OpenVpnClientApi_CS.Client.SecurityEventReceived">
             <summary>
             Event handler for security events such as the route table being altered after vpn connection
+            Default is to log the message to the console.
             </summary>
         </member>
         <member name="M:OpenVpnClientApi_CS.Client.#ctor">
@@ -82,7 +90,7 @@
             If another connection is active, end it. Once that connection is ended, start the new one.
             </summary>
         </member>
-        <member name="M:OpenVpnClientApi_CS.Client.ListenForRoutingTableChangeAsync">
+        <member name="M:OpenVpnClientApi_CS.Client.MonitorRoutingTableChange">
             <summary>
             Listens to the routing table for changes. If a change is detected, it will be output as a new event
             </summary>
@@ -101,6 +109,11 @@
         <member name="M:OpenVpnClientApi_CS.Client.Show_stats">
             <summary>
             Gets the IO stats from the openVPN core library and fires the OnLogReceived event with output
+            </summary>
+        </member>
+        <member name="M:OpenVpnClientApi_CS.Client.Restart">
+            <summary>
+            Manually restart the connection
             </summary>
         </member>
         <member name="M:OpenVpnClientApi_CS.Client.ConnectionFinished(ClientAPI_Status)">
@@ -137,6 +150,12 @@
             </summary>
             <param name="loginfo"></param>
         </member>
+        <member name="M:OpenVpnClientApi_CS.Client.Log(System.String)">
+            <summary>
+            Log a message that is not from the C++ core
+            </summary>
+            <param name="message"></param>
+        </member>
         <member name="M:OpenVpnClientApi_CS.Client.PauseOnConnectionTimeout">
             <summary>
             When a connection is close to timeout, the core will call this
@@ -156,12 +175,10 @@
             <param name="socket"></param>
             <returns></returns>
         </member>
-        <member name="M:OpenVpnClientApi_CS.Client.TunBuilderNew">
+        <member name="T:OpenVpnClientApi_CS.Enums.SecurityEventType">
             <summary>
-            Creates a new instance of the ITunBuilder interface
-            null by default
+            The different security events. some are fatal, some not. Most of these will come from clievent.hpp
             </summary>
-            <returns></returns>
         </member>
         <member name="T:OpenVpnClientApi_CS.OpenVPNClientThread">
             <summary>

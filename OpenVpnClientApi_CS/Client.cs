@@ -1,4 +1,5 @@
-﻿using OpenVpnClientApi_CS.Exceptions;
+﻿using OpenVpnClientApi_CS.Enums;
+using OpenVpnClientApi_CS.Exceptions;
 using OpenVpnClientApi_CS.Interfaces;
 using System;
 using System.IO;
@@ -19,6 +20,14 @@ namespace OpenVpnClientApi_CS
         private ClientAPI_Config _configData;
         private ClientAPI_ProvideCreds _configCreds;
         private ClientAPI_EvalConfig _configEvaluator;
+        private bool _shouldRestartOnRouteTabeChange = true;
+
+        /// <summary>
+        /// Determines if the OpenVPN connection will automatically restart if the routing table is changed after a connection is established.
+        /// This is used to enforce internet lockouts and only allow traffic to be routed to the endpoint specified in the ovpn config.
+        /// true by default.
+        /// </summary>
+        public bool ShouldRestartOnRouteTabeChange { get => _shouldRestartOnRouteTabeChange; set => _shouldRestartOnRouteTabeChange = value; }
 
         #region Public events
         /// <summary>
@@ -53,8 +62,9 @@ namespace OpenVpnClientApi_CS
 
         /// <summary>
         /// Event handler for security events such as the route table being altered after vpn connection
+        /// Default is to log the message to the console.
         /// </summary>
-        public event EventHandler<string> SecurityEventReceived;
+        public event EventHandler<ClientAPI_Event> SecurityEventReceived;
         #endregion
 
         /// <summary>
@@ -88,6 +98,9 @@ namespace OpenVpnClientApi_CS
             {
                 Console.WriteLine("Connected to VPN");
             }
+
+            //TODO figure out why this always fires one event at the beginning.
+            MonitorRoutingTableChange();
         }
 
         private void OnCoreEventReceived(ClientAPI_Event message)
@@ -114,7 +127,7 @@ namespace OpenVpnClientApi_CS
             }
         }
 
-        private void OnSecurityEventReceived(string message)
+        private void OnSecurityEventReceived(ClientAPI_Event message, SecurityEventType eventType)
         {
             if (SecurityEventReceived != null)
             {
@@ -122,7 +135,20 @@ namespace OpenVpnClientApi_CS
             }
             else
             {
-                Console.WriteLine(message);
+                Console.WriteLine("SECURITY EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info);
+            }
+
+            if (eventType == SecurityEventType.RoutingTableChanged)
+            {
+                if (ShouldRestartOnRouteTabeChange)
+                {
+                    Restart();
+                }
+                else
+                {
+                    //Restart the watcher thread
+                    _clientThread.StartRoutingTableMonitoring();
+                }
             }
         }
 
@@ -239,25 +265,15 @@ namespace OpenVpnClientApi_CS
         /// </summary>
         public void Connect()
         {
-            if (_clientThread.IsCurrentlyRunning())
-            {
-                string errorMessage = "Before starting another connection, the current client object must be stopped (clientObj.Stop()) ";
-                errorMessage += " Then, the object's config and credentials must be reset with the new values, then Connect() can be called";
-
-                throw new ConnectionCalledTwiceException(errorMessage);
-            }
-            else
-            {
-                _clientThread.Connect(this);
-            }
+            _clientThread.Connect(this);
         }
 
         /// <summary>
-        /// Listens to the routing table for changes. If a change is detected, it will be outout as a new event
+        /// Listens to the routing table for changes. If a change is detected, it will be output as a new event
         /// </summary>
-        public void ListenForRoutingTableChange()
+        public void MonitorRoutingTableChange()
         {
-            _clientThread.listenToRoutingTable(); 
+            _clientThread.StartRoutingTableMonitoring();
         }
 
         /// <summary>
@@ -305,6 +321,21 @@ namespace OpenVpnClientApi_CS
         }
 
         /// <summary>
+        /// Manually restart the connection
+        /// </summary>
+        public void Restart()
+        {
+            if (IsVPNActive())
+            {
+                //Ensure Routing table monitoring is off while we restart.
+                if(_clientThread.CloseMonitoringThread())
+                {
+                    _clientThread.reconnect(0);
+                }
+            }
+        }
+
+        /// <summary>
         /// Called when the connection has been cancelled, or stopped.
         /// Writes a message to the console window, then triggers the ConnectionClosed Event
         /// </summary>
@@ -326,13 +357,17 @@ namespace OpenVpnClientApi_CS
         /// <param name="apiEvent"></param>
         public void Event_(ClientAPI_Event apiEvent)
         {
-            if (String.Equals(apiEvent.name, "Connected", StringComparison.OrdinalIgnoreCase))
+            switch (apiEvent.name.ToLower())
             {
-                OnConnectionEstablished();
-            }
-            else
-            {
-                OnCoreEventReceived(apiEvent);
+                case "connected":
+                    OnConnectionEstablished();
+                    break;
+                case "route_table_changed":
+                    OnSecurityEventReceived(apiEvent, SecurityEventType.RoutingTableChanged);
+                    break;
+                default:
+                    OnCoreEventReceived(apiEvent);
+                    break;
             }
         }
 
@@ -368,6 +403,17 @@ namespace OpenVpnClientApi_CS
         }
 
         /// <summary>
+        /// Log a message that is not from the C++ core
+        /// </summary>
+        /// <param name="message"></param>
+        public void Log(string message)
+        {
+            string text = String.Format("LOG: {0}", message);
+
+            OnLogReceived(text);
+        }
+
+        /// <summary>
         /// When a connection is close to timeout, the core will call this
         /// method.  If it returns false, the core will disconnect with a
         /// CONNECTION_TIMEOUT event.  If true, the core will enter a PAUSE
@@ -397,16 +443,6 @@ namespace OpenVpnClientApi_CS
         public bool SocketProtect(int socket)
         {
             return false;
-        }
-
-        /// <summary>
-        /// Creates a new instance of the ITunBuilder interface
-        /// null by default
-        /// </summary>
-        /// <returns></returns>
-        public ITunBuilder TunBuilderNew()
-        {
-            return null;
         }
 
         private void SetDefaultManagementComponents()

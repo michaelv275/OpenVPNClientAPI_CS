@@ -20,9 +20,6 @@
         // state.
         bool PauseOnConnectionTimeout();
 
-        // Callback to construct a new tun builder
-        ITunBuilder TunBuilderNew();
-
         // Callback to get a certificate
         void ExternalPkiCertRequest(ClientAPI_ExternalPKICertRequest req);
 

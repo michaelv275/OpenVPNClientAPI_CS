@@ -21,5 +21,6 @@ namespace OpenVpnClientApi_CS.Interfaces
         bool TunBuilderSetSessionName(string name);
         int TunBuilderEstablish();
         void TunBuilderTeardown(bool disconnect);
+        ClientAPI_StringVec TunBuilderGetLocalNetworks(bool ipv6);
     }
 }

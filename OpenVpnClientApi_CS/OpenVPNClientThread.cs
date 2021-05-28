@@ -11,7 +11,6 @@ namespace OpenVpnClientApi_CS
     /// </summary>
     internal class OpenVPNClientThread : ClientAPI_OpenVPNClient
     {
-        private Client _clientCaller;
         private Thread _clientThread;
         private Thread _routingTableMonitoringThread;
         private ClientAPI_Status _apiConnectionStatus;
@@ -21,9 +20,9 @@ namespace OpenVpnClientApi_CS
         private int _bytesOutIndex = -1;
 
         //Logging that is not done through the core (C++), must be done through this manager
-        public Client Manager { get; set; }
+        internal Client Manager { get; set; }
 
-        public OpenVPNClientThread()
+        internal OpenVPNClientThread()
         {
             int statCount = stats_n();
 
@@ -42,8 +41,8 @@ namespace OpenVpnClientApi_CS
             }
         }
 
-        //Start connect session in worker thread
-        public void Connect(Client parent_arg)
+        ///Start connect session in worker thread
+        internal void Connect(Client parent_arg)
         {
             if (_hasConnectBeencalled)
             {
@@ -56,7 +55,7 @@ namespace OpenVpnClientApi_CS
             _hasConnectBeencalled = true;
 
             // direct client callbacks to parent
-            _clientCaller = parent_arg;
+            Manager = parent_arg;
 
             // clear status
             _apiConnectionStatus = null;
@@ -66,42 +65,65 @@ namespace OpenVpnClientApi_CS
             _clientThread.Start();
         }
 
-        public void StartRoutingTableMonitoring()
+        /// <summary>
+        /// starts the routing table monitor thread if it is not already. 
+        /// Tells openVPN library to start monitoring the routing table, as .Net cannot do that.
+        /// </summary>
+        internal void StartRoutingTableMonitoring()
         {
-            _routingTableMonitoringThread = new Thread(new ThreadStart(listen_To_Routing_Table)) { Name = "RoutingTableMonitoringThread", IsBackground = true };
-            _routingTableMonitoringThread.Start();
+            if (_routingTableMonitoringThread is null)
+            {
+                _routingTableMonitoringThread = new Thread(new ThreadStart(listen_To_Routing_Table)) { Name = "RoutingTableMonitoringThread"};
+                _routingTableMonitoringThread.Start();
+            }
+            else
+            {
+                Manager.Log("Routing table thread already active. Not starting another one");
+            }
         }
 
-        public bool CloseMonitoringThread()
+        /// <summary>
+        /// Resets the routing table monitor thread variable
+        /// </summary>
+        internal void ClearMonitoringThread()
         {
-            _clientCaller.Log("Closing monitoring thread");
+            _routingTableMonitoringThread = null;
+        }
 
-            bool isMonitoringStopped = true;
-
+        /// <summary>
+        /// If the monitor thread is still alive, call the OpenVPN cancel method and reset the thread.
+        /// If the monitor thread is terminated, reset the thread to be used later.
+        /// </summary>
+        internal void StopRoutingTableMonitoring()
+        {
             try
             {
-                stop_Routing_Table_Monitoring();
-                _routingTableMonitoringThread = null;
-            }
-            catch (ThreadAbortException)
-            {
-                //expected
-                _routingTableMonitoringThread = null;
+                if (_routingTableMonitoringThread?.IsAlive ?? false)
+                {
+                    stop_Routing_Table_Monitoring();
+                    bool isMonitoringStopped = _routingTableMonitoringThread.Join(5000);
+
+                    if (isMonitoringStopped)
+                    {
+                        ClearMonitoringThread();
+                    }
+                }
+                else
+                {
+                    ClearMonitoringThread();
+                }
             }
             catch (Exception ex)
             {
-                _clientCaller.Log(ex.Message);
-                isMonitoringStopped = false;
+                Manager.Log(ex.Message);
             }
-
-            return isMonitoringStopped;
         }
 
         /// <summary>
         /// prints how many bytes were received with base.stats_value(index) in C++
         /// </summary>
         /// <returns></returns>
-        public long GetBytesIn()
+        internal long GetBytesIn()
         {
             return base.stats_value(_bytesInIndex);
         }
@@ -110,12 +132,12 @@ namespace OpenVpnClientApi_CS
         /// prints how many bytes were sent with base.stats_value(index) in C++
         /// </summary>
         /// <returns></returns>
-        public long GetBytesOut()
+        internal long GetBytesOut()
         {
             return base.stats_value(_bytesOutIndex);
         }
 
-        public void Run()
+        internal void Run()
         {
             // Call out to core to start connection.
             // Doesn't return until connection has terminated.
@@ -124,12 +146,15 @@ namespace OpenVpnClientApi_CS
             EndClientThread(status);
         }
 
-        public void Stop()
+        internal void Stop()
         {
+            //make sure all monitoring threads are cancelled.
+            StopRoutingTableMonitoring();
+
             base.stop();
         }
 
-        public bool IsCurrentlyRunning()
+        internal bool IsCurrentlyRunning()
         {
             return (_clientThread != null && _clientThread.IsAlive);
         }
@@ -148,13 +173,13 @@ namespace OpenVpnClientApi_CS
             if (!(parent is null))
             {
                 //reset everything
-                _clientCaller = new Client();
+                Manager = new Client();
             }
         }
 
         private IEventReceiver FinalizeThread(ClientAPI_Status connect_status)
         {
-            IEventReceiver finalizedParent = _clientCaller;
+            IEventReceiver finalizedParent = Manager;
 
             if (finalizedParent != null)
             {
@@ -162,7 +187,7 @@ namespace OpenVpnClientApi_CS
                 _apiConnectionStatus = connect_status;
 
                 // disassociate client callbacks from parent
-                _clientCaller = null;
+                Manager = null;
                 _clientThread = null;
                 _hasConnectBeencalled = false;
             }
@@ -172,13 +197,13 @@ namespace OpenVpnClientApi_CS
 
         #region ClientAPI_OpenVPNClient (C++ class) overrides
 
-        public bool SocketProtect(int socket)
+        internal bool SocketProtect(int socket)
         {
             bool isSocketProtected = false;
 
-            if (_clientCaller != null)
+            if (Manager != null)
             {
-                isSocketProtected = _clientCaller.SocketProtect(socket);
+                isSocketProtected = Manager.SocketProtect(socket);
             }
 
             return isSocketProtected;
@@ -188,9 +213,9 @@ namespace OpenVpnClientApi_CS
         {
             bool isPaused = false;
 
-            if (_clientCaller != null)
+            if (Manager != null)
             {
-                isPaused = _clientCaller.PauseOnConnectionTimeout();
+                isPaused = Manager.PauseOnConnectionTimeout();
             }
 
             return isPaused;
@@ -198,22 +223,22 @@ namespace OpenVpnClientApi_CS
 
         public override void event_(ClientAPI_Event apiEvent)
         {
-            _clientCaller?.Event_(apiEvent);
+            Manager?.Event_(apiEvent);
         }
 
         public override void log(ClientAPI_LogInfo loginfo)
         {
-            _clientCaller?.Log(loginfo);
+            Manager?.Log(loginfo);
         }
 
         public override void external_pki_cert_request(ClientAPI_ExternalPKICertRequest req)
         {
-            _clientCaller?.ExternalPkiCertRequest(req);
+            Manager?.ExternalPkiCertRequest(req);
         }
 
         public override void external_pki_sign_request(ClientAPI_ExternalPKISignRequest req)
         {
-            _clientCaller?.ExternalPkiSignRequest(req);
+            Manager?.ExternalPkiSignRequest(req);
         }
         #endregion
     }

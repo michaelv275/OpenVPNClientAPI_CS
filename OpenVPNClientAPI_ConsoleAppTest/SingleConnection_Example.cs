@@ -1,6 +1,5 @@
 ﻿using OpenVpnClientApi_CS;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -15,7 +14,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
         //Be sure to set this if your VPN server requires authentication
         private static bool _vpnUsesCredentialAuth = true;
 
-        public static Client VPNManager = new Client();// { ShouldRestartOnRouteTabeChange = false };
+        public static Client VPNManager = new Client();// { ShouldRestartOnRouteTabeChange = false};
 
         /// <summary>
         /// A simple example that will start a connection using the provided config string or file.
@@ -93,7 +92,13 @@ namespace OpenVPNClientAPI_ConsoleAppTest
                             VPNManager.Show_stats();
                             break;
                         case "restart":
-                            VPNManager.Restart();
+                            VPNManager.ReconnectVPN();
+                            break;
+                        case "mstart":
+                            VPNManager.StartMonitoringRoutingTable();
+                            break;
+                        case "mstop":
+                            VPNManager.StopMonitoringRoutingTable();
                             break;
                         default:
                             break;

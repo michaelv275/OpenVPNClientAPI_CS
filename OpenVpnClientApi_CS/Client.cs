@@ -2,7 +2,9 @@
 using OpenVpnClientApi_CS.Exceptions;
 using OpenVpnClientApi_CS.Interfaces;
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace OpenVpnClientApi_CS
 {
@@ -21,6 +23,7 @@ namespace OpenVpnClientApi_CS
         private ClientAPI_ProvideCreds _configCreds;
         private ClientAPI_EvalConfig _configEvaluator;
         private bool _shouldRestartOnRouteTabeChange = true;
+        private Stopwatch _routingTableEventTimer = new Stopwatch();
 
         /// <summary>
         /// Determines if the OpenVPN connection will automatically restart if the routing table is changed after a connection is established.
@@ -99,8 +102,13 @@ namespace OpenVpnClientApi_CS
                 Console.WriteLine("Connected to VPN");
             }
 
-            //TODO figure out why this always fires one event at the beginning.
-            MonitorRoutingTableChange();
+            if (_routingTableEventTimer.IsRunning)
+            {
+                _routingTableEventTimer.Restart();
+            }
+
+            _routingTableEventTimer.Start();
+            StartMonitoringRoutingTable();
         }
 
         private void OnCoreEventReceived(ClientAPI_Event message)
@@ -140,15 +148,23 @@ namespace OpenVpnClientApi_CS
 
             if (eventType == SecurityEventType.RoutingTableChanged)
             {
-                if (ShouldRestartOnRouteTabeChange)
+                //Receiving the routing_table_changed event means that the thread has completed. Free up the monitoring thread.
+                _clientThread.ClearMonitoringThread();
+
+                _routingTableEventTimer.Stop();
+
+                int timeSinceLastEventSeconds = _routingTableEventTimer.Elapsed.Seconds;
+
+                if (ShouldRestartOnRouteTabeChange && timeSinceLastEventSeconds > 5)
                 {
-                    Restart();
+                    ReconnectVPN();
                 }
                 else
                 {
-                    //Restart the watcher thread
                     _clientThread.StartRoutingTableMonitoring();
                 }
+
+                _routingTableEventTimer.Restart();
             }
         }
 
@@ -269,11 +285,18 @@ namespace OpenVpnClientApi_CS
         }
 
         /// <summary>
-        /// Listens to the routing table for changes. If a change is detected, it will be output as a new event
+        /// Manually starts the Routing table monitoring thread.
         /// </summary>
-        public void MonitorRoutingTableChange()
+        public void StartMonitoringRoutingTable()
         {
             _clientThread.StartRoutingTableMonitoring();
+        }
+        /// <summary>
+        /// Manually stops the Routing table monitoring thread
+        /// </summary>
+        public void StopMonitoringRoutingTable()
+        {
+            _clientThread.StopRoutingTableMonitoring();
         }
 
         /// <summary>
@@ -323,15 +346,14 @@ namespace OpenVpnClientApi_CS
         /// <summary>
         /// Manually restart the connection
         /// </summary>
-        public void Restart()
+        public void ReconnectVPN()
         {
             if (IsVPNActive())
             {
                 //Ensure Routing table monitoring is off while we restart.
-                if(_clientThread.CloseMonitoringThread())
-                {
-                    _clientThread.reconnect(0);
-                }
+                _clientThread.StopRoutingTableMonitoring();
+
+                _clientThread.reconnect(0);
             }
         }
 

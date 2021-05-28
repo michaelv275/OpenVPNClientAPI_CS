@@ -436,6 +436,7 @@ namespace openvpn {
 	Protocol proto_override;
 	IP::Addr::Version proto_version_override;
 	IPv6Setting ipv6;
+	bool is_Monitoring_Routing_Table = true;
 	int conn_timeout = 0;
 	bool tun_persist = false;
 	bool wintun = false;
@@ -838,6 +839,7 @@ namespace openvpn {
 		DWORD ret;
 		HANDLE hand = NULL;
 
+		state->is_Monitoring_Routing_Table = true;
 		state->basicEventOverlap.hEvent = WSACreateEvent();
 		
 		try
@@ -848,25 +850,33 @@ namespace openvpn {
 			{
 				if (WSAGetLastError() != WSA_IO_PENDING)
 				{
-					OPENVPN_LOG("NotifyRouteChange error...%d", WSAGetLastError());
+					ClientEvent::Base::Ptr ev = new ClientEvent::Info("NotifyRouteChange error..." + openvpn::to_string(WSAGetLastError()));
+					state->events->add_event(ev);
 					return;
 				}
 			}
 
 			if (WaitForSingleObject(state->basicEventOverlap.hEvent, INFINITE) == WAIT_OBJECT_0)
 			{
-				ClientEvent::Base::Ptr ev = new ClientEvent::RouteTableError("Routing table changed");
-				state->events->add_event(ev);
+				if (state->is_Monitoring_Routing_Table)
+				{
+					ClientEvent::Base::Ptr ev = new ClientEvent::RouteTableError("Routing table changed");
+					state->events->add_event(ev);
+				}
 			}
 		}
 		catch (const std::exception&)
 		{
+			ClientEvent::Base::Ptr ev = new ClientEvent::RouteTableError("error caught listening to routing table.. ");
+			state->events->add_event(ev);
 			return;
 		}
 	}
 
 	OPENVPN_CLIENT_EXPORT void OpenVPNClient::stop_Routing_Table_Monitoring()
 	{
+		//set this so the client is not notified that the routing table changed. Only the monitoring.
+		state->is_Monitoring_Routing_Table = false;
 		CancelIPChangeNotify(&state->basicEventOverlap);
 	}
 

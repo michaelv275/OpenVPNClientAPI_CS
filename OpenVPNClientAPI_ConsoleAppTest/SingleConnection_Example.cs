@@ -7,9 +7,9 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 {
     class SingleConnection_Example
     {
-        static readonly string _vpnConfig = @"C:\AppTests\OpenVPN\stigConfig.ovpn";//@"C:\AppTests\OpenVPN\VPNBook.com-OpenVPN-US1\vpnbook-us1-tcp80.ovpn";
-        private static readonly string _vpnCredUsername = "vpnbook";
-        private static readonly string _vpnCredPassword = "E2AtUn7";
+        static readonly string _vpnConfig = "";//vpn config as string or file location to .ovpn file
+        private static readonly string _vpnCredUsername = "username";
+        private static readonly string _vpnCredPassword = "password";
 
         //Be sure to set this if your VPN server requires authentication
         private static bool _vpnUsesCredentialAuth = true;
@@ -72,8 +72,8 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 
         private async static Task CheckForStopAsync()
         {
-            await Task.Run(() => 
-            { 
+            await Task.Run(() =>
+            {
                 bool stopReceived = false;
 
                 while (!stopReceived)

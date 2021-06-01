@@ -14,6 +14,22 @@
             Instead, the methods in this class will utilize the OpenVPNClientThread.cs object to interact with the underlying C++ openVPN3 library.
             </summary>
         </member>
+        <member name="P:OpenVpnClientApi_CS.Client.ShouldRestartOnRouteTabeChange">
+            <summary>
+            Determines if the OpenVPN connection will automatically restart if the routing table is changed after a connection is established.
+            This is used to enforce internet lockouts and only allow traffic to be routed to the endpoint specified in the ovpn config.
+            true by default.
+            
+            For this to work, ShouldMonitorRoutingTable needs to also be set to true.
+            </summary>
+        </member>
+        <member name="P:OpenVpnClientApi_CS.Client.ShouldMonitorRoutingTable">
+            <summary>
+            Determinies if a Monitor thread will watch for changes on the routing table. It is recommended for security purposes that this not be changed.
+            
+            Default is true.
+            </summary>
+        </member>
         <member name="E:OpenVpnClientApi_CS.Client.ConnectionClosed">
             <summary>
             Event handler for the ConnectionClosed event
@@ -47,6 +63,14 @@
         <member name="E:OpenVpnClientApi_CS.Client.SecurityEventReceived">
             <summary>
             Event handler for security events such as the route table being altered after vpn connection
+            Default is to log the message to the console.
+            </summary>
+        </member>
+        <member name="E:OpenVpnClientApi_CS.Client.RoutingTableChanged">
+            <summary>
+            A branch of SecurityEventReceived event speciafically for the when the routing table is changed. 
+            
+            SecurityEventReceived will be fired first, then this.
             </summary>
         </member>
         <member name="M:OpenVpnClientApi_CS.Client.#ctor">
@@ -82,9 +106,19 @@
             If another connection is active, end it. Once that connection is ended, start the new one.
             </summary>
         </member>
-        <member name="M:OpenVpnClientApi_CS.Client.ListenForRoutingTableChangeAsync">
+        <member name="M:OpenVpnClientApi_CS.Client.StartMonitoringRoutingTable">
             <summary>
-            Listens to the routing table for changes. If a change is detected, it will be output as a new event
+            Manually starts the Routing table monitoring thread. It is not recommended to do this manually.
+            
+            This will happen automatically if ShouldMonitorRoutingTable is set to true.
+            </summary>
+        </member>
+        <member name="M:OpenVpnClientApi_CS.Client.StopMonitoringRoutingTable">
+            <summary>
+            Manually stops the Routing table monitoring thread. It is not recommended to do this manually. 
+            
+            Initializing the client with ShouldMonitorRoutingTable = false
+            Will ensure that the monitor thread is never started.
             </summary>
         </member>
         <member name="M:OpenVpnClientApi_CS.Client.Stop">
@@ -101,6 +135,11 @@
         <member name="M:OpenVpnClientApi_CS.Client.Show_stats">
             <summary>
             Gets the IO stats from the openVPN core library and fires the OnLogReceived event with output
+            </summary>
+        </member>
+        <member name="M:OpenVpnClientApi_CS.Client.ReconnectVPN">
+            <summary>
+            Manually restart the connection
             </summary>
         </member>
         <member name="M:OpenVpnClientApi_CS.Client.ConnectionFinished(ClientAPI_Status)">
@@ -137,6 +176,12 @@
             </summary>
             <param name="loginfo"></param>
         </member>
+        <member name="M:OpenVpnClientApi_CS.Client.Log(System.String)">
+            <summary>
+            Log a message that is not from the C++ core
+            </summary>
+            <param name="message"></param>
+        </member>
         <member name="M:OpenVpnClientApi_CS.Client.PauseOnConnectionTimeout">
             <summary>
             When a connection is close to timeout, the core will call this
@@ -156,17 +201,35 @@
             <param name="socket"></param>
             <returns></returns>
         </member>
-        <member name="M:OpenVpnClientApi_CS.Client.TunBuilderNew">
+        <member name="T:OpenVpnClientApi_CS.Enums.SecurityEventType">
             <summary>
-            Creates a new instance of the ITunBuilder interface
-            null by default
+            The different security events. some are fatal, some not. Most of these will come from clievent.hpp
             </summary>
-            <returns></returns>
         </member>
         <member name="T:OpenVpnClientApi_CS.OpenVPNClientThread">
             <summary>
             This class interacts directly with the underlying C++ openVPN3 library. Rather, the code that was generated by swig, that created invocable
             C# methods from the C++ code.
+            </summary>
+        </member>
+        <member name="M:OpenVpnClientApi_CS.OpenVPNClientThread.Connect(OpenVpnClientApi_CS.Client)">
+            Start connect session in worker thread
+        </member>
+        <member name="M:OpenVpnClientApi_CS.OpenVPNClientThread.StartRoutingTableMonitoring">
+            <summary>
+            starts the routing table monitor thread if it is not already. 
+            Tells openVPN library to start monitoring the routing table, as .Net cannot do that.
+            </summary>
+        </member>
+        <member name="M:OpenVpnClientApi_CS.OpenVPNClientThread.ClearMonitoringThread">
+            <summary>
+            Resets the routing table monitor thread variable
+            </summary>
+        </member>
+        <member name="M:OpenVpnClientApi_CS.OpenVPNClientThread.StopRoutingTableMonitoring">
+            <summary>
+            If the monitor thread is still alive, call the OpenVPN cancel method and reset the thread.
+            If the monitor thread is terminated, reset the thread to be used later.
             </summary>
         </member>
         <member name="M:OpenVpnClientApi_CS.OpenVPNClientThread.GetBytesIn">

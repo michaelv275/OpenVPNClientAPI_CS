@@ -38,7 +38,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
                 VPNManager.ConnectionClosed += VPNManager_ConnectionClosed;
                 //VPNManager.ConnectionTimedOut += Custom Connection Timeout handler
                 //VPNManager.CoreEventReceived += Custom Core Event Handler
-                //VPNManager.SecurityEventReceived += SEcurity Event handler
+                //VPNManager.SecurityEventReceived += Security Event handler
                 VPNManager.LogReceived += (s, e) => Console.WriteLine(String.Format("Log received event : {0}", e));
 
                 RunNewConnection(_vpnConfig);

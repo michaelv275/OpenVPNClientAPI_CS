@@ -33,37 +33,37 @@
         <member name="E:OpenVpnClientApi_CS.Client.ConnectionClosed">
             <summary>
             Event handler for the ConnectionClosed event
-            Default is to write "Disconnected from VPN" to the console. 
+            Default is to write "Disconnected from VPN" to the Debug output. 
             </summary>
         </member>
         <member name="E:OpenVpnClientApi_CS.Client.ConnectionEstablished">
             <summary>
             Event handler for the ConnectionClosed event
-            Default is to write "Connected to VPN" to the console.
+            Default is to write "Connected to VPN" to the Debug output.
             </summary>
         </member>
         <member name="E:OpenVpnClientApi_CS.Client.ConnectionTimedOut">
             <summary>
             Event handler for the ConnectionTimedOut event
-            Default is to write "Connection request timed out" to the console
+            Default is to write "Connection request timed out" to the Debug output
             </summary>
         </member>
         <member name="E:OpenVpnClientApi_CS.Client.LogReceived">
             <summary>
             Event handler for the Log and Stat events
-            Default is to log the message to the console.
+            Default is to log the message to the Debug output.
             </summary>
         </member>
         <member name="E:OpenVpnClientApi_CS.Client.CoreEventReceived">
             <summary>
             Event handler for the CoreEventReceived event
-            Default is to log the message to the console.
+            Default is to log the message to the Debug output.
             </summary>
         </member>
         <member name="E:OpenVpnClientApi_CS.Client.SecurityEventReceived">
             <summary>
             Event handler for security events such as the route table being altered after vpn connection
-            Default is to log the message to the console.
+            Default is to log the message to the Debug output.
             </summary>
         </member>
         <member name="E:OpenVpnClientApi_CS.Client.RoutingTableChanged">

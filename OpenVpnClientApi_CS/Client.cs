@@ -44,37 +44,37 @@ namespace OpenVpnClientApi_CS
         #region Public events
         /// <summary>
         /// Event handler for the ConnectionClosed event
-        /// Default is to write "Disconnected from VPN" to the console. 
+        /// Default is to write "Disconnected from VPN" to the Debug output. 
         /// </summary>
         public event EventHandler ConnectionClosed;
 
         /// <summary>
         /// Event handler for the ConnectionClosed event
-        /// Default is to write "Connected to VPN" to the console.
+        /// Default is to write "Connected to VPN" to the Debug output.
         /// </summary>
         public event EventHandler ConnectionEstablished;
 
         /// <summary>
         /// Event handler for the ConnectionTimedOut event
-        /// Default is to write "Connection request timed out" to the console
+        /// Default is to write "Connection request timed out" to the Debug output
         /// </summary>
         public event EventHandler ConnectionTimedOut;
 
         /// <summary>
         /// Event handler for the Log and Stat events
-        /// Default is to log the message to the console.
+        /// Default is to log the message to the Debug output.
         /// </summary>
         public event EventHandler<string> LogReceived;
 
         /// <summary>
         /// Event handler for the CoreEventReceived event
-        /// Default is to log the message to the console.
+        /// Default is to log the message to the Debug output.
         /// </summary>
         public event EventHandler<ClientAPI_Event> CoreEventReceived;
 
         /// <summary>
         /// Event handler for security events such as the route table being altered after vpn connection
-        /// Default is to log the message to the console.
+        /// Default is to log the message to the Debug output.
         /// </summary>
         public event EventHandler<ClientAPI_Event> SecurityEventReceived;
 
@@ -103,7 +103,7 @@ namespace OpenVpnClientApi_CS
             }
             else
             {
-                Console.WriteLine("Disconnected from VPN");
+                Debug.WriteLine("Disconnected from VPN");
             }
         }
 
@@ -115,7 +115,7 @@ namespace OpenVpnClientApi_CS
             }
             else
             {
-                Console.WriteLine("Connected to VPN");
+                Debug.WriteLine("Connected to VPN");
             }
 
             if (ShouldMonitorRoutingTable)
@@ -132,7 +132,7 @@ namespace OpenVpnClientApi_CS
             }
             else
             {
-                Console.WriteLine("EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info);
+                Debug.WriteLine(String.Format("EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info));
             }
         }
 
@@ -144,7 +144,7 @@ namespace OpenVpnClientApi_CS
             }
             else
             {
-                Console.WriteLine(logMessage);
+                Debug.WriteLine(logMessage);
             }
         }
 
@@ -156,7 +156,7 @@ namespace OpenVpnClientApi_CS
             }
             else
             {
-                Console.WriteLine("SECURITY EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info);
+                Debug.WriteLine(String.Format("SECURITY EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info));
             }
 
             if (eventType == SecurityEventType.RoutingTableChanged)
@@ -173,7 +173,7 @@ namespace OpenVpnClientApi_CS
             }
             else
             {
-                Console.WriteLine("The connection request has timed out");
+                Debug.WriteLine("The connection request has timed out");
             }
         }
 

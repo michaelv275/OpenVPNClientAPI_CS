@@ -1,10 +1,11 @@
 ﻿using System;
 namespace OpenVPNClientAPI_ConsoleAppTest
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
+            _ = args;
             Console.WriteLine("Welcome to the test/example project for the C# OpenVPN client API wrapper.");
             Console.WriteLine("Feel free to take a look at the example classes by Changing the Startup Object for the OpenVPNClientAPI_ConsoleAppTest");
 
@@ -16,7 +17,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 
             Console.WriteLine();
             Console.WriteLine("Press enter to exit");
-            Console.ReadLine();
+            _ = Console.ReadLine();
         }
     }
 }

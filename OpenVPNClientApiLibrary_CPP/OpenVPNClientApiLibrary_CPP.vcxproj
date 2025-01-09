@@ -87,7 +87,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\vcpkg\installed\x64-windows\include;C:\Dispel\DispelRepos\OpenVPNClientApiCSharp\OpenVPNClientApiLibrary_CPP\ThirdPartyLibraries\openvpn3;$(IncludePath)</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\vcpkg\installed\x64-windows\include;C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\ThirdPartyLibraries\openvpn3;$(IncludePath)</IncludePath>
     <OutDir>$(ProjectDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -98,6 +98,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -218,7 +219,7 @@ copy /Y "$(OutDir)*.exp" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configur
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Dispel\Tools\Swig\swigwin-4.0.2\swig.exe -csharp -c++ -outdir C:\Dispel\DispelRepos\OpenVPNClientApiCSharp\OpenVpnClientApi_CS\OpenVPNInvokableFiles openvpncli.i</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">clientApi_wrap.cxx</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Wrapping OpenVPN C++ exposed objects in C#</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Dispel\Tools\Swig\swigwin-4.0.2\swig.exe -csharp -c++ -outdir C:\Dispel\DispelRepos\OpenVPNClientApiCSharp\OpenVpnClientApi_CS\OpenVPNInvokableFiles openvpncli.i</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Dispel\Tools\Swig\swigwin-4.0.2\swig.exe -csharp -c++ -outdir C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVpnClientApi_CS\OpenVPNInvokableFiles openvpncli.i</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvpncli_wrap.cxx</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Wrapping OpenVPN C++ exposed objects in C#</Message>
     </CustomBuild>

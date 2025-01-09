@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 set -e
+if [ "$XTRACE" = 1 ]; then
+   set -x
+fi
 
 if [ -z "$O3" ]; then
     echo O3 var must point to ovpn3 tree
@@ -25,7 +28,6 @@ if [ -z "$1" ]; then
     echo ' OUTBIN=name -- write binary to name'
     echo " STRIP=1 -- strip binary"
     echo " STRICT=1 -- more warnings"
-    echo " LTO=1 -- build with LTO"
     echo " GPROF=1 -- build for gprof profiling"
     echo " PGEN=1 -- generate data for profile-guided optimization"
     echo " PUSE=1 -- use data from previous run of PGEN=1 build"
@@ -52,11 +54,15 @@ if [ -z "$1" ]; then
     echo " CITY=1 -- build with Cityhash hash library"
     echo " XXHASH=1 -- build with XXHash hash library"
     echo " CAP=1 -- build with libcap"
-    echo " VAL=1 -- build with valgrind run-time extensions"
     echo " JAVA=1 -- build with JVM"
-    echo ' EXTRA_CPP="foo1.cpp foo2.cpp" -- add extra .cpp files'
+    echo ' EXTRA_CPP="foo1.cpp foo2.cpp" -- add extra .cpp files into single compilation unit'
+    echo ' EXTRA_CPP_OBJS="bar1.cpp foo2.cpp" -- add extra .cpp as separate compilation units'
     echo " GTEST_DIR=<dir> -- specify googletest tree, required for building unit tests"
+    echo " VAL=1 -- (optional) build with valgrind run-time extensions"
+    echo " ASAN=1 -- (optional) enable ASAN run-time checks"
     echo " PCRE=1 -- build with PCRE library"
+    echo " SYSD=1 -- build with systemd library"
+    echo " SQLITE=1 -- build with sqlite3 library"
     for s in $(enum_build_extras) ; do
 	. $s args
     done
@@ -101,7 +107,7 @@ if [ "$MA_HYBRID" = "1" ]; then
     MTLS=1
 fi
 
-# building on Mac OS X for osx, ios, or iossim?
+# building on Mac OS X for osx or ios?
 if [ "$APPLE_FAMILY" = "1" ]; then
     [ -z "$CLANG" ] && CLANG=1
 fi
@@ -290,14 +296,34 @@ if [ "$CAP" = "1" ]; then
     CPPFLAGS="$CPPFLAGS -DHAVE_LIBCAP"
 fi
 
+# libsystemd
+if [ "$SYSD" = "1" ]; then
+    LIBS="$LIBS -lsystemd"
+    CPPFLAGS="$CPPFLAGS -DHAVE_LIBSYSTEMD"
+fi
+
+# libsqlite3
+if [ "$SQLITE" = "1" ]; then
+    LIBS="$LIBS -lsqlite3"
+    CPPFLAGS="$CPPFLAGS -DHAVE_SQLITE"
+fi
+
 # PCRE
 if [ "$PCRE" = "1" ]; then
     LIBS="$LIBS -lpcre"
 fi
 
-# Valgrind
-if [ "$VAL" = "1" ]; then
-    CPPFLAGS="$CPPFLAGS -DHAVE_VALGRIND"
+# ASAN requested -- ensure higher-fidelity stacks
+if [ "$ASAN" = "1" ]; then
+    FLAGS+=" -ggdb3 -fno-omit-frame-pointer -fsanitize=address"
+    CPPFLAGS="$CPPFLAGS -DINSTRUMENTATION_SLOWDOWN"
+else
+    ASAN=
+fi
+
+# Valgrind -- but only if ASAN is not enabled
+if [ "$ASAN" = "" -a "$VAL" ]; then
+    CPPFLAGS="$CPPFLAGS -DHAVE_VALGRIND -DINSTRUMENTATION_SLOWDOWN"
 fi
 
 # JVM
@@ -382,8 +408,20 @@ if [ "$DEBUG" = "1" ]; then
     fi
 else
     # release build
-    [ "$LTO" = "1" ] && [ "$CLANG" != "1" ] && FLAGS="$FLAGS -flto=4 -Wl,--no-as-needed"
+    [ "$CLANG" != "1" ] && FLAGS="$FLAGS -flto=4 -Wl,--no-as-needed"
     [ "$GPROF" = "1" ] && FLAGS="$FLAGS -pg"
+fi
+
+
+if [ ! -z "${EXTRA_CPP_OBJS}" ]; then
+  for CPP_OBJ in $EXTRA_CPP_OBJS $MAIN_CPP; do
+      [ "$ECHO" = "1" ] && echo "compiling $CPP_OBJ"
+      CMD="$GPP_CMD $FLAGS $GCC_EXTRA $CPPFLAGS $LIBDIRS $CPP_OBJ -c -o $CPP_OBJ.o"
+      [ "$ECHO" = "1" ] && echo $CMD
+      $CMD
+      EXTRA_SRC_OBJ="${EXTRA_SRC_OBJ} $CPP_OBJ.o"
+  done
+  MAIN_CPP=""
 fi
 
 # Construct command

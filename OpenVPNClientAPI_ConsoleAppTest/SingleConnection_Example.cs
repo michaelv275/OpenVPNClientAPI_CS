@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace OpenVPNClientAPI_ConsoleAppTest
 {
-    class SingleConnection_Example
+    internal class SingleConnection_Example
     {
-        static readonly string _vpnConfig = "";//vpn config as string or file location to .ovpn file
+        private static readonly string _vpnConfig = "";//vpn config as string or file location to .ovpn file
         private static readonly string _vpnCredUsername = "username";
         private static readonly string _vpnCredPassword = "password";
 
@@ -28,8 +28,9 @@ namespace OpenVPNClientAPI_ConsoleAppTest
         /// 
         /// It is recommended that all events are subscribed to and handled, otherwise their output will be written to the Console.
         /// </summary>
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
+            _ = args;
             Console.WriteLine("**Starting**");
 
             try
@@ -39,7 +40,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
                 //VPNManager.ConnectionTimedOut += Custom Connection Timeout handler
                 //VPNManager.CoreEventReceived += Custom Core Event Handler
                 //VPNManager.SecurityEventReceived += Security Event handler
-                VPNManager.LogReceived += (s, e) => Console.WriteLine(String.Format("Log received event : {0}", e));
+                VPNManager.LogReceived += (s, e) => Console.WriteLine(string.Format("Log received event : {0}", e));
 
                 RunNewConnection(_vpnConfig);
             }
@@ -56,7 +57,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 
             Console.WriteLine();
             Console.WriteLine("Press enter to exit");
-            Console.ReadLine();
+            _ = Console.ReadLine();
         }
 
         private static void VPNManager_ConnectionEstablished(object sender, EventArgs e)
@@ -67,7 +68,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
             VPNManager.Show_stats();
             Console.WriteLine();
 
-            CheckForStopAsync();
+            _ = CheckForStopAsync();
         }
 
         private async static Task CheckForStopAsync()
@@ -122,11 +123,11 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 
             if (!_vpnUsesCredentialAuth)
             {
-                VPNManager.AddCredentials(false);
+                _ = VPNManager.AddCredentials(false);
             }
             else
             {
-                VPNManager.AddCredentials(true, _vpnCredUsername, _vpnCredPassword);
+                _ = VPNManager.AddCredentials(true, _vpnCredUsername, _vpnCredPassword);
             }
 
             try

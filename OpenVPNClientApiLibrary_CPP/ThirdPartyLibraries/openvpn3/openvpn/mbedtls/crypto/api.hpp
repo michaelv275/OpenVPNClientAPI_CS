@@ -4,20 +4,10 @@
 //               packet encryption, packet authentication, and
 //               packet compression.
 //
-//    Copyright (C) 2012-2020 OpenVPN Inc.
+//    Copyright (C) 2012- OpenVPN Inc.
 //
-//    This program is free software: you can redistribute it and/or modify
-//    it under the terms of the GNU Affero General Public License Version 3
-//    as published by the Free Software Foundation.
+//    SPDX-License-Identifier: MPL-2.0 OR AGPL-3.0-only WITH openvpn3-openssl-exception
 //
-//    This program is distributed in the hope that it will be useful,
-//    but WITHOUT ANY WARRANTY; without even the implied warranty of
-//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//    GNU Affero General Public License for more details.
-//
-//    You should have received a copy of the GNU Affero General Public License
-//    along with this program in the COPYING file.
-//    If not, see <http://www.gnu.org/licenses/>.
 
 #ifndef OPENVPN_MBEDTLS_CRYPTO_API_H
 #define OPENVPN_MBEDTLS_CRYPTO_API_H
@@ -26,11 +16,13 @@
 #include <openvpn/mbedtls/crypto/cipheraead.hpp>
 #include <openvpn/mbedtls/crypto/digest.hpp>
 #include <openvpn/mbedtls/crypto/hmac.hpp>
+#include <openvpn/mbedtls/crypto/tls1prf.hpp>
 
 namespace openvpn {
 
-  // type container for MbedTLS Crypto-level API
-  struct MbedTLSCryptoAPI {
+// type container for MbedTLS Crypto-level API
+struct MbedTLSCryptoAPI
+{
     // cipher
     typedef MbedTLSCrypto::CipherContext CipherContext;
     typedef MbedTLSCrypto::CipherContextAEAD CipherContextAEAD;
@@ -40,7 +32,10 @@ namespace openvpn {
 
     // HMAC
     typedef MbedTLSCrypto::HMACContext HMACContext;
-  };
-}
+
+    // TLS 1.0/1.1 PRF function
+    using TLS1PRF = MbedTLSCrypto::TLS1PRF;
+};
+} // namespace openvpn
 
 #endif

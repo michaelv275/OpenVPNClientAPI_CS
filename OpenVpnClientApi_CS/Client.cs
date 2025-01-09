@@ -1,10 +1,8 @@
-﻿using OpenVpnClientApi_CS.Enums;
-using OpenVpnClientApi_CS.Exceptions;
+﻿using OpenVpnClientApi_CS.Exceptions;
 using OpenVpnClientApi_CS.Interfaces;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace OpenVpnClientApi_CS
 {
@@ -22,24 +20,6 @@ namespace OpenVpnClientApi_CS
         private ClientAPI_Config _configData;
         private ClientAPI_ProvideCreds _configCreds;
         private ClientAPI_EvalConfig _configEvaluator;
-        private bool _shouldRestartOnRouteTabeChange = true;
-        private bool _shouldMonitorRoutingTable = true;
-        private Stopwatch _routingTableEventTimer = new Stopwatch();
-
-        /// <summary>
-        /// Determines if the OpenVPN connection will automatically restart if the routing table is changed after a connection is established.
-        /// This is used to enforce internet lockouts and only allow traffic to be routed to the endpoint specified in the ovpn config.
-        /// true by default.
-        /// 
-        /// For this to work, ShouldMonitorRoutingTable needs to also be set to true.
-        /// </summary>
-        public bool ShouldRestartOnRouteTabeChange { get => _shouldRestartOnRouteTabeChange; set => _shouldRestartOnRouteTabeChange = value; }
-        /// <summary>
-        /// Determinies if a Monitor thread will watch for changes on the routing table. It is recommended for security purposes that this not be changed.
-        /// 
-        /// Default is true.
-        /// </summary>
-        public bool ShouldMonitorRoutingTable { get => _shouldMonitorRoutingTable; set => _shouldMonitorRoutingTable = value; }
 
         #region Public events
         /// <summary>
@@ -117,11 +97,6 @@ namespace OpenVpnClientApi_CS
             {
                 Debug.WriteLine("Connected to VPN");
             }
-
-            if (ShouldMonitorRoutingTable)
-            {
-                StartMonitoringRoutingTable();
-            }
         }
 
         private void OnCoreEventReceived(ClientAPI_Event message)
@@ -132,7 +107,7 @@ namespace OpenVpnClientApi_CS
             }
             else
             {
-                Debug.WriteLine(String.Format("EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info));
+                Debug.WriteLine(string.Format("EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info));
             }
         }
 
@@ -148,7 +123,7 @@ namespace OpenVpnClientApi_CS
             }
         }
 
-        private void OnSecurityEventReceived(ClientAPI_Event message, SecurityEventType eventType)
+        private void OnSecurityEventReceived(ClientAPI_Event message)
         {
             if (SecurityEventReceived != null)
             {
@@ -156,12 +131,7 @@ namespace OpenVpnClientApi_CS
             }
             else
             {
-                Debug.WriteLine(String.Format("SECURITY EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info));
-            }
-
-            if (eventType == SecurityEventType.RoutingTableChanged)
-            {
-                OnRoutingTableChanged();
+                Debug.WriteLine(string.Format("SECURITY EVENT: err={0} name={1} info='{2}'", message.error, message.name, message.info));
             }
         }
 
@@ -175,16 +145,6 @@ namespace OpenVpnClientApi_CS
             {
                 Debug.WriteLine("The connection request has timed out");
             }
-        }
-
-        private void OnRoutingTableChanged()
-        {
-            RoutingTableChanged?.Invoke(this, new EventArgs());
-
-            //Receiving the routing_table_changed event means that the thread has completed. Free up the monitoring thread.
-            _clientThread.ClearMonitoringThread();
-
-            StopMonitoringRoutingTable();
         }
 
         /// <summary>
@@ -215,7 +175,7 @@ namespace OpenVpnClientApi_CS
         /// <param name="fileLocation">The fully qualified location of the desired file to read</param>
         public void SetConfigWithFile(string fileLocation)
         {
-            string configFileContent = String.Empty;
+            string configFileContent = string.Empty;
 
             if (File.Exists(fileLocation))
             {
@@ -227,15 +187,15 @@ namespace OpenVpnClientApi_CS
                     {
                         while (!reader.EndOfStream)
                         {
-                            if (!String.IsNullOrEmpty(lastLine = reader.ReadLine()))
+                            if (!string.IsNullOrEmpty(lastLine = reader.ReadLine()))
                             {
-                                configFileContent += String.Format("{0}\n", lastLine);
+                                configFileContent += string.Format("{0}\n", lastLine);
                             }
                         }
                     }
                 }
 
-                if (!String.IsNullOrEmpty(configFileContent))
+                if (!string.IsNullOrEmpty(configFileContent))
                 {
                     SetConfigWithMultiLineString(configFileContent);
                 }
@@ -254,21 +214,21 @@ namespace OpenVpnClientApi_CS
         /// <param name="password"></param>
         public ClientAPI_Status AddCredentials(bool useCredentials, string username = null, string password = null)
         {
-            ClientAPI_Status credentialStatus = new ClientAPI_Status();
+            _ = new ClientAPI_Status();
 
             if (useCredentials)
             {
                 if (!_configEvaluator.autologin)
                 {
-                    if (!String.IsNullOrEmpty(username))
+                    if (!string.IsNullOrEmpty(username))
                     {
                         _configCreds.username = username;
                         _configCreds.password = password;
-                        _configCreds.replacePasswordWithSessionID = true;
                     }
                 }
             }
 
+            ClientAPI_Status credentialStatus;
             if (_configCreds != null)
             {
                 credentialStatus = _clientThread.provide_creds(_configCreds);
@@ -289,53 +249,6 @@ namespace OpenVpnClientApi_CS
         public void Connect()
         {
             _clientThread.Connect(this);
-        }
-
-        /// <summary>
-        /// Manually starts the Routing table monitoring thread. It is not recommended to do this manually.
-        /// 
-        /// This will happen automatically if ShouldMonitorRoutingTable is set to true.
-        /// </summary>
-        public void StartMonitoringRoutingTable()
-        {
-            if (_routingTableEventTimer.IsRunning)
-            {
-                _routingTableEventTimer.Restart();
-            }
-            else
-            {
-                _routingTableEventTimer.Start();
-            }
-
-            _clientThread.StartRoutingTableMonitoring();
-        }
-        /// <summary>
-        /// Manually stops the Routing table monitoring thread. It is not recommended to do this manually. 
-        /// 
-        /// Initializing the client with ShouldMonitorRoutingTable = false
-        /// Will ensure that the monitor thread is never started.
-        /// </summary>
-        public void StopMonitoringRoutingTable()
-        {
-            _clientThread.StopRoutingTableMonitoring();
-
-            if (_routingTableEventTimer.IsRunning)
-            {
-                _routingTableEventTimer.Stop();
-
-                int timeSinceLastEventSeconds = _routingTableEventTimer.Elapsed.Seconds;
-
-                if (ShouldRestartOnRouteTabeChange && timeSinceLastEventSeconds > 5)
-                {
-                    ReconnectVPN();
-                }
-                else
-                {
-                    _clientThread.StartRoutingTableMonitoring();
-                }
-
-                _routingTableEventTimer.Restart();
-            }
         }
 
         /// <summary>
@@ -377,7 +290,7 @@ namespace OpenVpnClientApi_CS
                         OnLogReceived("STATISTICS:");
                     }
 
-                    OnLogReceived(String.Format("STAT: {0}={1}", name, value));
+                    OnLogReceived(string.Format("STAT: {0}={1}", name, value));
                 }
             }
         }
@@ -389,9 +302,6 @@ namespace OpenVpnClientApi_CS
         {
             if (IsVPNActive())
             {
-                //Ensure Routing table monitoring is off while we restart.
-                _clientThread.StopRoutingTableMonitoring();
-
                 _clientThread.reconnect(0);
             }
         }
@@ -422,9 +332,6 @@ namespace OpenVpnClientApi_CS
             {
                 case "connected":
                     OnConnectionEstablished();
-                    break;
-                case "route_table_changed":
-                    OnSecurityEventReceived(apiEvent, SecurityEventType.RoutingTableChanged);
                     break;
                 default:
                     OnCoreEventReceived(apiEvent);
@@ -458,7 +365,7 @@ namespace OpenVpnClientApi_CS
         /// <param name="loginfo"></param>
         public void Log(ClientAPI_LogInfo loginfo)
         {
-            string text = String.Format("LOG: {0}", loginfo.text);
+            string text = string.Format("LOG: {0}", loginfo.text);
 
             OnLogReceived(text);
         }
@@ -469,7 +376,7 @@ namespace OpenVpnClientApi_CS
         /// <param name="message"></param>
         public void Log(string message)
         {
-            string text = String.Format("LOG: {0}", message);
+            string text = string.Format("LOG: {0}", message);
 
             OnLogReceived(text);
         }
@@ -491,7 +398,7 @@ namespace OpenVpnClientApi_CS
             {
                 OnConnectionTimedOut();
             }
-            
+
             return shouldPause;
         }
 

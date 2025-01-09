@@ -1,6 +1,5 @@
 ﻿using OpenVpnClientApi_CS.Exceptions;
 using OpenVpnClientApi_CS.Interfaces;
-using System;
 using System.Threading;
 
 namespace OpenVpnClientApi_CS
@@ -12,7 +11,6 @@ namespace OpenVpnClientApi_CS
     internal class OpenVPNClientThread : ClientAPI_OpenVPNClient
     {
         private Thread _clientThread;
-        private Thread _routingTableMonitoringThread;
         private ClientAPI_Status _apiConnectionStatus;
         private bool _hasConnectBeencalled = false;
 
@@ -66,60 +64,6 @@ namespace OpenVpnClientApi_CS
         }
 
         /// <summary>
-        /// starts the routing table monitor thread if it is not already. 
-        /// Tells openVPN library to start monitoring the routing table, as .Net cannot do that.
-        /// </summary>
-        internal void StartRoutingTableMonitoring()
-        {
-            if (_routingTableMonitoringThread is null)
-            {
-                _routingTableMonitoringThread = new Thread(new ThreadStart(listen_To_Routing_Table)) { Name = "RoutingTableMonitoringThread"};
-                _routingTableMonitoringThread.Start();
-            }
-            else
-            {
-                Manager.Log("Routing table thread already active. Not starting another one");
-            }
-        }
-
-        /// <summary>
-        /// Resets the routing table monitor thread variable
-        /// </summary>
-        internal void ClearMonitoringThread()
-        {
-            _routingTableMonitoringThread = null;
-        }
-
-        /// <summary>
-        /// If the monitor thread is still alive, call the OpenVPN cancel method and reset the thread.
-        /// If the monitor thread is terminated, reset the thread to be used later.
-        /// </summary>
-        internal void StopRoutingTableMonitoring()
-        {
-            try
-            {
-                if (_routingTableMonitoringThread?.IsAlive ?? false)
-                {
-                    stop_Routing_Table_Monitoring();
-                    bool isMonitoringStopped = _routingTableMonitoringThread.Join(5000);
-
-                    if (isMonitoringStopped)
-                    {
-                        ClearMonitoringThread();
-                    }
-                }
-                else
-                {
-                    ClearMonitoringThread();
-                }
-            }
-            catch (Exception ex)
-            {
-                Manager.Log(ex.Message);
-            }
-        }
-
-        /// <summary>
         /// prints how many bytes were received with base.stats_value(index) in C++
         /// </summary>
         /// <returns></returns>
@@ -148,15 +92,12 @@ namespace OpenVpnClientApi_CS
 
         internal void Stop()
         {
-            //make sure all monitoring threads are cancelled.
-            StopRoutingTableMonitoring();
-
             base.stop();
         }
 
         internal bool IsCurrentlyRunning()
         {
-            return (_clientThread != null && _clientThread.IsAlive);
+            return _clientThread != null && _clientThread.IsAlive;
         }
 
         /// <summary>

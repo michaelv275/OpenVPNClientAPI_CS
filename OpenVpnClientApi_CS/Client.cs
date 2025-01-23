@@ -57,13 +57,6 @@ namespace OpenVpnClientApi_CS
         /// Default is to log the message to the Debug output.
         /// </summary>
         public event EventHandler<ClientAPI_Event> SecurityEventReceived;
-
-        /// <summary>
-        /// A branch of SecurityEventReceived event speciafically for the when the routing table is changed. 
-        /// 
-        /// SecurityEventReceived will be fired first, then this.
-        /// </summary>
-        public event EventHandler RoutingTableChanged;
         #endregion
 
         /// <summary>

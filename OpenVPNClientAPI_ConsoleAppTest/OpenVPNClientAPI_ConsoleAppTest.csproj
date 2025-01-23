@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>OpenVPNClientAPI_ConsoleAppTest</RootNamespace>
     <AssemblyName>OpenVPNClientAPI_ConsoleAppTest</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
@@ -62,7 +62,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="OpenVpnClientApi_CS, Version=2.0.0.0, Culture=neutral, processorArchitecture=AMD64">
-      <HintPath>..\packages\OpenVpnClientApi_CS.2.0.0\lib\net472\OpenVpnClientApi_CS.dll</HintPath>
+      <HintPath>..\packages\OpenVpnClientApi_CS.2.0.0\lib\net462\OpenVpnClientApi_CS.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -84,8 +84,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /Y "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configuration)\" "$(ProjectDir)$(OutDir)"
-copy /Y "$(SolutionDir)OpenVpnClientApi_CS\bin\$(Configuration)\" "$(ProjectDir)$(OutDir)"
-</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>

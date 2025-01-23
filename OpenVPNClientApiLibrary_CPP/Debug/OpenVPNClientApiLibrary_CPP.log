@@ -1,0 +1,63 @@
+﻿  dllmain.cpp
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\dllmain.cpp(2,10): error C1083: Cannot open precompiled header file: 'Debug\OpenVPNClientApiLibrary_CPP.pch': No such file or directory
+  openvpncli_wrap.cxx
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(28,11): warning C4005: 'SWIGTEMPLATEDISAMBIGUATOR': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(22,11):
+      see previous definition of 'SWIGTEMPLATEDISAMBIGUATOR'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(37,12): warning C4005: 'SWIGINLINE': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(35,12):
+      see previous definition of 'SWIGINLINE'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(47,14): warning C4005: 'SWIGUNUSED': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(45,14):
+      see previous definition of 'SWIGUNUSED'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(50,12): warning C4005: 'SWIGUNUSED': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(47,14):
+      see previous definition of 'SWIGUNUSED'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(52,12): warning C4005: 'SWIGUNUSED': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(50,12):
+      see previous definition of 'SWIGUNUSED'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(66,12): warning C4005: 'SWIGUNUSEDPARM': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(64,12):
+      see previous definition of 'SWIGUNUSEDPARM'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(94,14): warning C4005: 'SWIGEXPORT': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(92,14):
+      see previous definition of 'SWIGEXPORT'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(98,14): warning C4005: 'SWIGEXPORT': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(94,14):
+      see previous definition of 'SWIGEXPORT'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(100,14): warning C4005: 'SWIGEXPORT': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(98,14):
+      see previous definition of 'SWIGEXPORT'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(110,12): warning C4005: 'SWIGSTDCALL': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(108,12):
+      see previous definition of 'SWIGSTDCALL'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(141,10): warning C4005: 'SWIG_NULLPTR': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(139,10):
+      see previous definition of 'SWIG_NULLPTR'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(168,10): warning C4005: 'SWIG_snprintf': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(161,10):
+      see previous definition of 'SWIG_snprintf'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(169,10): warning C4005: 'SWIG_snprintf2': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(162,10):
+      see previous definition of 'SWIG_snprintf2'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(416,10): warning C4005: 'SWIG_STD_MOVE': macro redefinition
+      C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(414,10):
+      see previous definition of 'SWIG_STD_MOVE'
+  
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx(7904,1): error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "pch.h"' to your source?
+  ovpncli.cpp
+C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\ThirdPartyLibraries\openvpn3\client\ovpncli.cpp(1444,1): error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "pch.h"' to your source?
+  Generating Code...

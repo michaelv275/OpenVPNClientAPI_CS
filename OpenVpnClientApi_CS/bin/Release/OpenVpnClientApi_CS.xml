@@ -50,13 +50,6 @@
             Default is to log the message to the Debug output.
             </summary>
         </member>
-        <member name="E:OpenVpnClientApi_CS.Client.RoutingTableChanged">
-            <summary>
-            A branch of SecurityEventReceived event speciafically for the when the routing table is changed. 
-            
-            SecurityEventReceived will be fired first, then this.
-            </summary>
-        </member>
         <member name="M:OpenVpnClientApi_CS.Client.#ctor">
             <summary>
             creates a new Client object and initializes the C++ implementation Object, a new OpenVPNClientThread object

@@ -19,11 +19,9 @@
 
     <dependencies>
       <group targetFramework=".NETFramework4.5" />
-      <group targetFramework=".NETFramework4.7.2" />
     </dependencies>
   </metadata>
   <files>
-    <file src="..\CPP_DLL_Lib_Ouput\x64\$configuration$\*.*" target="lib\net45" />
-    <file src="bin\$configuration$\*.*" target="lib\net45" />
+    <file src="..\CPP_DLL_Lib_Ouput\x64\$configuration$\*.*" target="lib\net45"/>
   </files>
 </package>

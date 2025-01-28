@@ -7,9 +7,9 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 {
     internal class SingleConnection_Example
     {
-        private static readonly string _vpnConfig = @"C:\AppTests\vpnBook\openvpn-profiles\vpnbook-openvpn-ca149\vpnbook-ca149-tcp80.ovpn";//vpn config as string or file location to .ovpn file
-        private static readonly string _vpnCredUsername = "vpnbook";
-        private static readonly string _vpnCredPassword = "hu86c9k";
+        private static readonly string _vpnConfig = @"";//vpn config as string or file location to .ovpn file
+        private static readonly string _vpnCredUsername = "";
+        private static readonly string _vpnCredPassword = "";
 
         //Be sure to set this if your VPN server requires authentication
         private static bool _vpnUsesCredentialAuth = true;

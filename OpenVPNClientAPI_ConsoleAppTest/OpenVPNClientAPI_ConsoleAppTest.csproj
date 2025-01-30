@@ -61,9 +61,6 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="OpenVpnClientApi_CS, Version=2.0.0.0, Culture=neutral, processorArchitecture=AMD64">
-      <HintPath>..\packages\OpenVpnClientApi_CS.2.0.0\lib\net462\OpenVpnClientApi_CS.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -80,7 +77,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OpenVpnClientApi_CS\OpenVpnClientApi_CS.csproj">
+      <Project>{cb6314a2-6afa-41b9-92d3-443706b0423f}</Project>
+      <Name>OpenVpnClientApi_CS</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

@@ -22,6 +22,7 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\CPP_DLL_Lib_Ouput\x64\$configuration$\*.*" target="lib\net45"/>
+    <file src="bin\Debug\*.dll" target="lib\net45" />
+	<file src="bin\Debug\*.dll" target="runtimes/x64/native/" />
   </files>
 </package>

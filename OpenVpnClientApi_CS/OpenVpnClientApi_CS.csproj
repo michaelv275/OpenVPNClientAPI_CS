@@ -132,12 +132,13 @@
   <ItemGroup>
     <None Include="OpenVpnClientApi_CS.nuspec" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>
     </PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
-    <PreBuildEvent>copy /Y "$(SolutionDir)CPP_DLL_Lib_Ouput\$(PlatformName)\$(Configuration)\*.dll" "$(TargetDir)"</PreBuildEvent>
+    <PreBuildEvent>copy /Y "$(SolutionDir)CPP_DLL_Lib_Ouput\$(PlatformName)\$(Configuration)\*" "$(TargetDir)"</PreBuildEvent>
   </PropertyGroup>
 </Project>

@@ -19,10 +19,12 @@
 
     <dependencies>
       <group targetFramework=".NETFramework4.5" />
+      <group targetFramework=".NETFramework4.6.2" />
     </dependencies>
   </metadata>
   <files>
-    <file src="bin\Debug\*.dll" target="lib\net45" />
-	<file src="bin\Debug\*.dll" target="runtimes/x64/native/" />
+    <file src="bin\$configuration$\*.dll" target="lib\net45" />
+    <file src="bin\$configuration$\*.dll" target="lib\net462" />
+	<file src="bin\$configuration$\*.dll" target="runtimes\win-x64\native" />
   </files>
 </package>

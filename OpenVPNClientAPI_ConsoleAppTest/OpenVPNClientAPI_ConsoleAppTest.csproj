@@ -80,7 +80,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="OpenVpnClientApi_CS">
-      <Version>2.0.0.1</Version>
+      <Version>2.0.0.5</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

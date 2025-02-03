@@ -22,21 +22,7 @@ namespace OpenVpnClientApi_CS
 
         internal OpenVPNClientThread()
         {
-            int statCount = stats_n();
 
-            for (int i = 0; i < statCount; ++i)
-            {
-                string name = stats_name(i);
-
-                if (name == "BYTES_IN")
-                {
-                    _bytesInIndex = i;
-                }
-                else if (name == "BYTES_OUT")
-                {
-                    _bytesOutIndex = i;
-                }
-            }
         }
 
         ///Start connect session in worker thread
@@ -69,7 +55,12 @@ namespace OpenVpnClientApi_CS
         /// <returns></returns>
         internal long GetBytesIn()
         {
-            return base.stats_value(_bytesInIndex);
+            if (_bytesInIndex < 0)
+            {
+                SetStatsIndexes();
+            }
+
+            return _bytesInIndex >= 0 ? base.stats_value(_bytesInIndex) : -1;
         }
 
         /// <summary>
@@ -78,7 +69,12 @@ namespace OpenVpnClientApi_CS
         /// <returns></returns>
         internal long GetBytesOut()
         {
-            return base.stats_value(_bytesOutIndex);
+            if (_bytesOutIndex < 0)
+            {
+                SetStatsIndexes();
+            }
+
+            return _bytesOutIndex >= 0 ? base.stats_value(_bytesOutIndex) : -1;
         }
 
         internal void Run()
@@ -98,6 +94,25 @@ namespace OpenVpnClientApi_CS
         internal bool IsCurrentlyRunning()
         {
             return _clientThread != null && _clientThread.IsAlive;
+        }
+
+        private void SetStatsIndexes()
+        {
+            int statCount = stats_n();
+
+            for (int i = 0; i < statCount; ++i)
+            {
+                string name = stats_name(i);
+
+                if (name == "BYTES_IN")
+                {
+                    _bytesInIndex = i;
+                }
+                else if (name == "BYTES_OUT")
+                {
+                    _bytesOutIndex = i;
+                }
+            }
         }
 
         /// <summary>

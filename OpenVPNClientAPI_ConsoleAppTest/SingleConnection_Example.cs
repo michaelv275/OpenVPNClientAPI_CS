@@ -7,12 +7,12 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 {
     internal class SingleConnection_Example
     {
-        private static readonly string _vpnConfig = @"C:\Program Files\Dispel\Wicket\test.ovpn";//vpn config as string or file location to .ovpn file
+        private static readonly string _vpnConfig = @"file path or config as string";
         private static readonly string _vpnCredUsername = "";
         private static readonly string _vpnCredPassword = "";
 
         //Be sure to set this if your VPN server requires authentication
-        private static bool _vpnUsesCredentialAuth = false;
+        private static bool _vpnUsesCredentialAuth = true;
 
         public static Client VPNManager = new Client();
 

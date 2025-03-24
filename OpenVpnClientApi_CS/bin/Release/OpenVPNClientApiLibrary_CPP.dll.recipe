@@ -2,12 +2,12 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\x64\Release\OpenVPNClientApiLibrary_CPP.dll</FullPath>
+      <FullPath>C:\Dispel\DispelRepos\OpenVPNClientAPI_CS_clean\OpenVPNClientApiLibrary_CPP\x64\Release\OpenVPNClientApiLibrary_CPP.dll</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles>
     <ContentFile>
-      <FullPath>C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx</FullPath>
+      <FullPath>C:\Dispel\DispelRepos\OpenVPNClientAPI_CS_clean\OpenVPNClientApiLibrary_CPP\openvpncli_wrap.cxx</FullPath>
     </ContentFile>
   </ContentFiles>
   <SatelliteDlls />

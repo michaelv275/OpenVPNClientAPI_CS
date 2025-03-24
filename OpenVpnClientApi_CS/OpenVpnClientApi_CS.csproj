@@ -130,6 +130,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="BuildScripts\pre-build.ps1" />
     <None Include="OpenVpnClientApi_CS.nuspec" />
   </ItemGroup>
   <ItemGroup />
@@ -139,6 +140,6 @@
     </PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
-    <PreBuildEvent>copy /Y "$(SolutionDir)CPP_DLL_Lib_Ouput\$(PlatformName)\$(Configuration)\*" "$(TargetDir)"</PreBuildEvent>
+    <PreBuildEvent>powershell.exe -File "$(ProjectDir)BuildScripts\pre-build.ps1" -SolutionDir "$(SolutionDir)\" -PlatformName "$(PlatformName)" -Configuration "$(Configuration)" -TargetDir "$(TargetDir)"</PreBuildEvent>
   </PropertyGroup>
 </Project>

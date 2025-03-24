@@ -7,7 +7,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
 {
     internal class SingleConnection_Example
     {
-        private static readonly string _vpnConfig = @"file path or config as string";
+        private static readonly string _vpnConfig = @"Enter file path or config string";
         private static readonly string _vpnCredUsername = "";
         private static readonly string _vpnCredPassword = "";
 

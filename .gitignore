@@ -15,12 +15,7 @@ OpenVPNClientApiLibrary_CPP/openvpncli_wrap*
 **/obj/
 **/Properties/
 **/x64/
-OpenVpnClientApi_CS/OpenVpnClientApi_CS.1.0.0.4.nupkg
-*.nupkg
-*.nupkg
-*.nupkg
 *.nupkg
 /OpenVpnClientApi_CS/bin
 /OpenVPNClientAPI_ConsoleAppTest/bin
 OpenVPNClientAPI_ConsoleAppTest/OpenVPNClientAPI_ConsoleAppTest.csproj.user
-/OpenVpnClientApi_CS/bin

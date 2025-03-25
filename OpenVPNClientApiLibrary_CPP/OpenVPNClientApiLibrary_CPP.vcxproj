@@ -221,7 +221,7 @@ copy /Y "$(OutDir)*.exp" "$(SolutionDir)CPP_DLL_Lib_Output\$(Platform)\$(Configu
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Dispel\Tools\Swig\swigwin-4.3.0\swig.exe -csharp -c++ -outdir $(SolutionDir)OpenVpnClientApi_CS\OpenVPNInvokableFiles openvpncli.i</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">clientApi_wrap.cxx</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Wrapping OpenVPN C++ exposed objects in C#</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Dispel\Tools\Swig\swigwin-4.3.0\swig.exe -csharp -c++ -outdir C:\Dispel\DispelRepos\OpenVPNClientAPI_CS\OpenVpnClientApi_CS\OpenVPNInvokableFiles openvpncli.i</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Dispel\Tools\Swig\swigwin-4.3.0\swig.exe -csharp -c++ -outdir $(SolutionDir)OpenVpnClientApi_CS\OpenVPNInvokableFiles openvpncli.i</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvpncli_wrap.cxx</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Wrapping OpenVPN C++ exposed objects in C#</Message>
     </CustomBuild>

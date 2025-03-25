@@ -42,4 +42,8 @@
   <ItemGroup>
     <CustomBuild Include="openvpncli.i" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="BuildScripts\pre-build.ps1" />
+    <None Include="BuildScripts\post-build.ps1" />
+  </ItemGroup>
 </Project>

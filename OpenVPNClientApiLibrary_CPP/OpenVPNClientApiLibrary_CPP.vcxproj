@@ -188,18 +188,16 @@ copy /Y "$(OutDir)*.exp" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configur
       <AdditionalDependencies>C:\vcpkg\installed\x64-windows\debug\lib\libssl.lib;fwpuclnt.lib;iphlpapi.lib;wininet.lib;setupapi.lib;rpcrt4.lib;wtsapi32.lib;C:\vcpkg\installed\x64-windows\debug\lib\lz4d.lib;C:\vcpkg\installed\x64-windows\debug\lib\libcrypto.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(OutDir)*.dll*" "$(SolutionDir)CPP_DLL_Lib_Output\$(Platform)\$(Configuration)\"
-copy /Y "$(OutDir)*.lib" "$(SolutionDir)CPP_DLL_Lib_Output\$(Platform)\$(Configuration)\"
-copy /Y "$(OutDir)*.obj" "$(SolutionDir)CPP_DLL_Lib_Output\$(Platform)\$(Configuration)\"
-copy /Y "$(OutDir)*.cxx" "$(SolutionDir)CPP_DLL_Lib_Output\$(Platform)\$(Configuration)\"
-copy /Y "$(OutDir)*.exp" "$(SolutionDir)CPP_DLL_Lib_Output\$(Platform)\$(Configuration)\"</Command>
+      <Command>powershell.exe -File "$(ProjectDir)BuildScripts\post-build.ps1" -SolutionDir "$(SolutionDir)\" -TargetDir "$(TargetDir)\"</Command>
     </PostBuildEvent>
     <PostBuildEvent>
-      <Message>Moving C++ dlls and lib to solution Output folder</Message>
+      <Message>
+      </Message>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>copy /Y "$(ProjectDir)Dependencies\$(Configuration)" "$(ProjectDir)$(Platform)\$(Configuration)\"</Command>
-      <Message>Moving vcpkg dependencies</Message>
+      <Command>powershell.exe -File "$(ProjectDir)BuildScripts\pre-build.ps1" -SolutionDir "$(SolutionDir)\" -PlatformName "$(Platform)" -Configuration "$(Configuration)" -ProjectDir "$(ProjectDir)\"</Command>
+      <Message>
+      </Message>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -221,10 +219,14 @@ copy /Y "$(OutDir)*.exp" "$(SolutionDir)CPP_DLL_Lib_Output\$(Platform)\$(Configu
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Dispel\Tools\Swig\swigwin-4.3.0\swig.exe -csharp -c++ -outdir $(SolutionDir)OpenVpnClientApi_CS\OpenVPNInvokableFiles openvpncli.i</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">clientApi_wrap.cxx</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Wrapping OpenVPN C++ exposed objects in C#</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Dispel\Tools\Swig\swigwin-4.3.0\swig.exe -csharp -c++ -outdir $(SolutionDir)OpenVpnClientApi_CS\OpenVPNInvokableFiles openvpncli.i</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Dispel\Tools\Swig\swigwin-4.3.0\swig.exe -csharp -c++ -outdir $(SolutionDir)OpenvpnNetClient\lib\OpenVPNInvokableFiles openvpncli.i</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvpncli_wrap.cxx</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Wrapping OpenVPN C++ exposed objects in C#</Message>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BuildScripts\post-build.ps1" />
+    <None Include="BuildScripts\pre-build.ps1" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

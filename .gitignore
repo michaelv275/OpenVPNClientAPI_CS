@@ -16,6 +16,5 @@ OpenVPNClientApiLibrary_CPP/openvpncli_wrap*
 **/Properties/
 **/x64/
 *.nupkg
-/OpenVpnClientApi_CS/bin
 /OpenVPNClientAPI_ConsoleAppTest/bin
 OpenVPNClientAPI_ConsoleAppTest/OpenVPNClientAPI_ConsoleAppTest.csproj.user

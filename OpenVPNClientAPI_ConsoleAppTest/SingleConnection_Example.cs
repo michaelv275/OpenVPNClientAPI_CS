@@ -1,4 +1,4 @@
-﻿using OpenVpnClientApi_CS;
+﻿using OpenvpnNetClient;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -12,7 +12,7 @@ namespace OpenVPNClientAPI_ConsoleAppTest
         private static readonly string _vpnCredPassword = "";
 
         //Be sure to set this if your VPN server requires authentication
-        private static bool _vpnUsesCredentialAuth = true;
+        private static bool _vpnUsesCredentialAuth = false;
 
         public static Client VPNManager = new Client();
 

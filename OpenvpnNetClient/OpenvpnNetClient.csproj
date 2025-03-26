@@ -7,10 +7,38 @@
     <UserSecretsId>73441904-e2bb-40b0-95b9-921a4db9dc54</UserSecretsId>
     <AssemblyVersion>3.0.1.0</AssemblyVersion>
     <FileVersion>3.0.1.0</FileVersion>
+	  
+	<Description>
+		A C# wrapper for the OpenVPN3 core library client API.
+
+		Requires Visual C++ Redistributable for Visual Studio 2015–2022 (x64)
+	</Description>
+	<PackageReleaseNotes>
+		Updated from original OpenVPNClientAPI_CS
+		
+	</PackageReleaseNotes>
+	<Copyright>Copyright 2020</Copyright>
+	<PackageTags>VPN OpenVPN C# OpenVPNC# OpenVPNClient VPNClient OpenVPN3</PackageTags>
+
+	<!-- Licensing -->
+	<PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+	<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
+	<!-- DLLs to include in the package -->
+	<ItemGroup>
+		<None Include="$(OutputPath)\net45\*.dll" Pack="true" PackagePath="lib\net45\" />
+		<None Include="$(OutputPath)\net462\*.dll" Pack="true" PackagePath="lib\net462\" />
+		<None Include="$(OutputPath)\net8.0\*.dll" Pack="true" PackagePath="lib\net8.0\" />
+	</ItemGroup>
+	
+	<!-- Ensure all dlls are copied to consuming project output directory-->
+	<ItemGroup>
+		<None Include="buildTransitive\OpenvpnNetClient.targets" Pack="true" PackagePath="buildTransitive\" />
+	</ItemGroup>
+
 	<PropertyGroup>
-		<Version>3.0.0</Version>
+		<Version>1.0.0.0</Version>
 	</PropertyGroup>
 
     <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
@@ -22,7 +50,7 @@
 	    
     </PropertyGroup>
 
-    <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
       <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets">
         <Version>6.0.1</Version>
       </PackageReference>
@@ -34,16 +62,12 @@
       </PackageReference>
     </ItemGroup>
 
-	<ItemGroup>
-		<None Include="openvpnNetClient.nuspec" />
-	</ItemGroup>
-
     <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
       <Exec Command="powershell.exe -File &quot;$(ProjectDir)BuildScripts\pre-build.ps1&quot; -ProjectDir &quot;$(ProjectDir)\&quot; -OutDir &quot;$(OutDir)\&quot;" />
     </Target>
 
     <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-      <Exec Command="powershell.exe -File &quot;$(ProjectDir)BuildScripts\post-build.ps1&quot; -ProjectDir &quot;$(ProjectDir)\&quot;" />
+      <Exec Command="powershell.exe -File &quot;$(ProjectDir)BuildScripts\post-build.ps1&quot; -ProjectDir &quot;$(ProjectDir)\&quot; -Platform &quot;$(Platform)&quot;" />
     </Target>
 
 </Project>

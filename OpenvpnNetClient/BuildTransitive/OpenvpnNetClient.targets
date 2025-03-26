@@ -1,0 +1,23 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<Target Name="CopyOpenvpnNetClientExtraDlls" AfterTargets="Build">
+		<PropertyGroup>
+			<!-- The path inside the NuGet global package cache -->
+			<_PackageLibDir>$(MSBuildThisFileDirectory)..\lib\$(TargetFramework)</_PackageLibDir>
+		</PropertyGroup>
+
+		<ItemGroup>
+			<!-- All DLLs in lib/netX -->
+			<_ExtraDlls Include="$(_PackageLibDir)\*.dll"
+						Exclude="$(_PackageLibDir)\OpenvpnNetClient.dll" />
+		</ItemGroup>
+
+		<Message Text="Copying extra DLLs from: $(_PackageLibDir)" Importance="High" />
+		<Message Text="Copying @( _ExtraDlls ) to $(OutputPath)" Importance="High" />
+
+		<Copy
+		  SourceFiles="@(_ExtraDlls)"
+		  DestinationFolder="$(OutputPath)"
+		  SkipUnchangedFiles="true"
+		  Condition=" '@(_ExtraDlls)' != '' " />
+	</Target>
+</Project>

@@ -10,6 +10,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenVPNClientAPI_ConsoleAppTest", "OpenVPNClientAPI_ConsoleAppTest\OpenVPNClientAPI_ConsoleAppTest.csproj", "{DDA54FBD-A777-4C10-ADA1-58DAAAE8046E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenvpnNetClient", "OpenvpnNetClient\OpenvpnNetClient.csproj", "{14624897-2A80-497D-885E-C1D1B4A9ABC0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{34B06E32-D877-4EAD-A53C-C2D6D7B8CEBF} = {34B06E32-D877-4EAD-A53C-C2D6D7B8CEBF}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

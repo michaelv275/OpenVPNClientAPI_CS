@@ -219,14 +219,16 @@ copy /Y "$(OutDir)*.exp" "$(SolutionDir)CPP_DLL_Lib_Ouput\$(Platform)\$(Configur
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Dispel\Tools\Swig\swigwin-4.3.0\swig.exe -csharp -c++ -outdir $(SolutionDir)OpenVpnClientApi_CS\OpenVPNInvokableFiles openvpncli.i</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">clientApi_wrap.cxx</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Wrapping OpenVPN C++ exposed objects in C#</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Dispel\Tools\Swig\swigwin-4.3.0\swig.exe -csharp -c++ -outdir $(SolutionDir)OpenvpnNetClient\lib\OpenVPNInvokableFiles openvpncli.i</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">powershell.exe -File "$(ProjectDir)BuildScripts\SwigWrapCppCode.ps1" -SolutionDir "$(SolutionDir)\"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">openvpncli_wrap.cxx</Outputs>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Wrapping OpenVPN C++ exposed objects in C#</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </Message>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="BuildScripts\post-build.ps1" />
     <None Include="BuildScripts\pre-build.ps1" />
+    <None Include="BuildScripts\SwigWrapCppCode.ps1" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

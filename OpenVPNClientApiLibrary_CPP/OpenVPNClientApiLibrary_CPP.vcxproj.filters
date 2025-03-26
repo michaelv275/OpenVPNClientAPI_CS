@@ -45,5 +45,6 @@
   <ItemGroup>
     <None Include="BuildScripts\pre-build.ps1" />
     <None Include="BuildScripts\post-build.ps1" />
+    <None Include="BuildScripts\SwigWrapCppCode.ps1" />
   </ItemGroup>
 </Project>

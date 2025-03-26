@@ -18,9 +18,9 @@ else {
 	Get-ChildItem -Path "$NetProjectCPPLibDirectory" | Remove-Item
 }
 
-#Copying C++ dlls and lib to solution Output folder
+#Copying C++ dlls and lib to solution Output folder. Exclude C++ runtime libraries. 
 Write-Output "Copying C++ library files to temp folder ($NetProjectCPPLibDirectory) for .NET project to use"
-Get-ChildItem -Path "$TargetDir" -Recurse -Include *.dll*, *.lib, *.obj, *.exp | Copy-Item -Destination "$NetProjectCPPLibDirectory" -Force
+Get-ChildItem -Path "$TargetDir" -Recurse -Include *.dll* -Exclude msvcp*, ucrt*, vcruntime* | Copy-Item -Destination "$NetProjectCPPLibDirectory" -Force
 
 Write-Output "============== OpenVPN C++ post-build completed =============="
 Write-Output ""
